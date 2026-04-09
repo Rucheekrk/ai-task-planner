@@ -1,0 +1,56 @@
+﻿EXPECTED NORMALIZED EVENTS
+1. 
+event_type: new_task
+task_text: Get API credentials from vendor
+owner: Priya
+deadline: tomorrow EOD
+status: null
+blocker: null
+dependency: null
+2.
+event_type: new_task
+task_text: Prepare final client proposal
+owner: Rahul
+deadline: Friday
+status: null
+blocker: null
+dependency: null
+3.
+event_type: new_task
+task_text: Schedule and complete deployment
+owner: Anita
+deadline: Thursday
+status: null
+blocker: null
+dependency: null
+4.
+event_type: new_task
+task_text: Resolve staging environment issues
+owner: Arjun
+deadline: Wednesday
+status: null
+blocker: null
+dependency: null
+EXPECTED THINGS MODEL SHOULD NOT PICK
+- Agenda statements:
+  "Today’s agenda includes reviewing sprint progress..."
+  
+- General updates:
+  "Frontend team has completed UI components..."
+  "Backend APIs are partially ready..."
+- Implicit follow-ups without assignment:
+  "We need to follow up on that"
+- Future discussion placeholders:
+  "We’ll discuss ownership in the next meeting"
+  "We’ll take this as a follow-up item"
+- Status-only statements (should NOT become new_task):
+  "Karan is still in progress"
+- Dependency statements (not new_task at this stage):
+  "Testing depends on deployment"
+- Broad improvement discussions:
+  "We need to improve documentation"
+  "We might need to optimize queries"
+- Questions / open-ended prompts:
+  "Can someone take ownership?"
+- Already completed or informational statements:
+  "QA team has started writing test cases"

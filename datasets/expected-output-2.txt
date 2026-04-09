@@ -1,0 +1,103 @@
+﻿--- NEW TASKS (SHOULD BE EXTRACTED + DECOMPOSED) ---
+
+
+1.
+task: Get sandbox credentials from vendor
+owner: Priya
+deadline: tomorrow EOD
+
+
+2.
+task: Complete payment API integration
+owner: John
+deadline: Monday
+
+
+3.
+task: Finalize client proposal for Phase 3
+owner: Rahul
+deadline: Friday
+
+
+4.
+task: Schedule and complete deployment
+owner: Anita
+deadline: Thursday
+
+
+5.
+task: Resolve staging environment issues
+owner: Arjun
+deadline: Wednesday
+
+
+6.
+task: Get schema approval from database team
+owner: Rohit
+deadline: tomorrow
+
+
+
+
+--- UPDATE EVENTS (SHOULD NOT BE DECOMPOSED) ---
+
+
+1.
+event_type: status_change
+task: Analytics pipeline work
+owner: Karan
+status: in_progress
+
+
+2.
+event_type: deadline_change
+task: Analytics pipeline work
+deadline: next Tuesday
+
+
+3.
+event_type: blocker
+task: Payment API integration
+status: blocked
+reason: missing sandbox credentials
+
+
+4.
+event_type: blocker
+task: Staging environment
+status: unstable
+reason: infra instability
+
+
+5.
+event_type: blocker
+task: Backend deployment
+status: blocked
+reason: schema approval pending
+
+
+6.
+event_type: dependency
+task: QA testing
+depends_on: deployment
+
+
+7.
+event_type: dependency
+task: Integration testing
+depends_on: backend deployment
+
+
+
+
+--- SHOULD NOT BE PICKED (IGNORE) ---
+
+
+- “we should improve documentation”
+- “we should improve performance”
+- “we should automate deployment”
+- “we’ll discuss later”
+- “we’ll assign later”
+- general discussions and opinions
+- confirmations (yes, got it, makes sense)
+- vague improvements without ownership
