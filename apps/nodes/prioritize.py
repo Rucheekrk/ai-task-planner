@@ -3,7 +3,7 @@ from apps.logger import get_logger
 from apps.state import AgentState
 
 # Initialize logger for this node
-logger = get_logger("PrioritizeNode")
+logger = get_logger("PRIORITIZE")
 
 
 def task_prioritize_node(state: AgentState) -> AgentState:

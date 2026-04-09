@@ -3,7 +3,7 @@ from apps.logger import get_logger
 from apps.state import AgentState
 
 # Initialize logger for this node
-logger = get_logger("RefineNode")
+logger = get_logger("REFINE")
 
 
 def task_refine_node(state: AgentState) -> AgentState:

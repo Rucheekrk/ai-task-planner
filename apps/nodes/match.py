@@ -6,7 +6,7 @@ from difflib import SequenceMatcher
 import re
 
 # Initialize logger
-logger = get_logger("MatchNode")
+logger = get_logger("MATCH")
 
 
 def normalize_text(text: str) -> str:

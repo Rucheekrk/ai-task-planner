@@ -3,7 +3,7 @@ from apps.logger import get_logger
 from apps.state import AgentState
 
 # Initialize logger for this node
-logger = get_logger("ValidateNode")
+logger = get_logger("VALIDATE")
 
 def task_validate_node(state: AgentState) -> AgentState:
     logger.info("=" * 60)  # separator for each new node run

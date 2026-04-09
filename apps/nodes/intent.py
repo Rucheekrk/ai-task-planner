@@ -3,7 +3,7 @@ from apps.logger import get_logger
 from apps.state import AgentState
 
 # Initialize logger for this node
-logger = get_logger("IntentNode")
+logger = get_logger("INTENT")
 
 
 def intent_classification_node(state: AgentState) -> AgentState:

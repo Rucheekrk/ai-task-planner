@@ -8,7 +8,7 @@ from apps.db.db import (
 import re
 
 # Initialize logger for this node
-logger = get_logger("FinalFormatNode")
+logger = get_logger("FORMAT")
 
 
 def task_format_node(state: AgentState) -> AgentState:

@@ -3,7 +3,7 @@ from apps.logger import get_logger
 from apps.state import AgentState
 
 # Initialize logger for this node
-logger = get_logger("DecomposeNode")
+logger = get_logger("DECOMPOSE")
 
 
 def task_decompose_node(state: AgentState) -> AgentState:

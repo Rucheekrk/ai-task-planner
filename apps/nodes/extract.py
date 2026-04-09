@@ -3,7 +3,7 @@ from apps.logger import get_logger
 from apps.state import AgentState
 
 # Initialize logger for this node
-logger = get_logger("ExtractNode")
+logger = get_logger("EXTRACT")
 
 
 def task_extract_node(state: AgentState) -> AgentState:

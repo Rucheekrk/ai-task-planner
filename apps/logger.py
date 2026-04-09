@@ -14,7 +14,7 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 # Create logger config
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     handlers=[
         logging.FileHandler(LOG_FILE), # write logs only to file (no terminal output)
         # logging.StreamHandler()
@@ -36,7 +36,7 @@ def get_logger(name: str):
 
         file_handler = logging.FileHandler(log_file)
         formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] [%(name)s] %(message)s"
+            "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
         )
 
         file_handler.setFormatter(formatter)
