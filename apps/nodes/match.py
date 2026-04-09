@@ -1,10 +1,9 @@
 from apps.logger import get_logger
 from apps.state import AgentState
 from apps.db.db import fetch_active_tasks
-from apps.utils.embeddings import get_embedding
+from apps.db.db import fetch_semantic_task_match
 from difflib import SequenceMatcher
 import re
-import math
 
 # Initialize logger
 logger = get_logger("MatchNode")
@@ -20,20 +19,6 @@ def normalize_text(text: str) -> str:
 def similarity(a: str, b: str) -> float:
     # Compute string similarity score
     return SequenceMatcher(None, a, b).ratio()
-
-def cosine_similarity(vec1: list, vec2: list) -> float:
-    # Compute cosine similarity between two embedding vectors
-    if not vec1 or not vec2:
-        return 0.0
-    
-    dot_product = sum(a * b for a, b in zip(vec1, vec2))
-    norm_vec1 = math.sqrt(sum(a * a for a in vec1))
-    norm_vec2 = math.sqrt(sum(b * b for b in vec2))
-
-    if norm_vec1 == 0 or norm_vec2 == 0:
-        return 0.0
-    
-    return dot_product / (norm_vec1 * norm_vec2)
 
 
 def task_match_node(state: AgentState) -> AgentState:
@@ -58,7 +43,7 @@ def task_match_node(state: AgentState) -> AgentState:
         # Default match fields for every event
         event["is_matched"] = False
         event["matched_task_id"] = None
-        event["matched_task_test"] = None
+        event["matched_task_text"] = None
         event["match_method"] = None
         event["match_confidence"] = "low"
 
@@ -122,7 +107,7 @@ def task_match_node(state: AgentState) -> AgentState:
                 if force_match and best_score >= 0.50:
                     # For update events → accept best match even with lower threshold, but not too low
                     match_method = "fuzzy"
-                    match_confidence = "medium" if best_score >= 0.80 else "low"
+                    match_confidence = "high" if best_score >= 0.80 else "low"
                 elif not force_match and best_score >= 0.75:
                     # For new tasks → stricter threshold
                     match_method = "fuzzy"
@@ -130,33 +115,27 @@ def task_match_node(state: AgentState) -> AgentState:
                 else:
                     best_match = None
         
-        # Step 4: Semantic match using embeddings (only if no exact/fuzzy match)
+        # Step 4: Semantic match using pgvector (only if no exact, partial or fuzzy match)
         if not best_match:
-            event_embedding = get_embedding(task_text)
+            semantic_match = fetch_semantic_task_match(task_text)
 
-            if event_embedding:
-                for task in existing_tasks:
-                    task_embedding = task.get("task_embedding")
+            if semantic_match:
+                score = semantic_match.get("similarity_score", 0)
 
-                    if not task_embedding:
-                        continue
+                logger.info(f"Semantic score for '{task_text}' = {score}")
 
-                    score = cosine_similarity(event_embedding, task_embedding)
-
-                    if score > best_score:
-                        best_score = score
-                        best_match = task
-
-                # Threshold for semantic match
-                if best_match:
-                    if force_match and best_score >= 0.60:
-                        match_method = "semantic"
-                        match_confidence = "medium" if best_score < 0.80 else "high"
-                    elif not force_match and best_score >= 0.80:
-                        match_method = "semantic"
-                        match_confidence = "high" if best_score >= 0.90 else "medium"
+                if score >= 0.60:
+                    best_match = semantic_match
+                    best_score = score
+                    match_method = "semantic"
+                    
+                    if score >= 0.85:
+                        match_confidence = "high"
+                    elif score >= 0.70:
+                        match_confidence = "medium"
                     else:
-                        best_match = None
+                        match_confidence = "low"
+
 
         # Step 5: Final result assignment
         if best_match:
@@ -173,7 +152,16 @@ def task_match_node(state: AgentState) -> AgentState:
                 f" using {match_method} ({best_score: .2f})"
             )
         else:
-            logger.info(f"No match found for event '{task_text}'")
+            if force_match:
+                # ❗ update event but no match found → mark unresolved
+                event["is_matched"] = False
+                event["matched_method"] = "unresolved"
+                event["matched_confidence"] = "low"
+
+                logger.warning(f"Unresolved update event: '{task_text}' (no matching task found)")
+            else:
+                # new task → allowed to create
+                logger.info(f"No match found for event '{task_text}'")
 
         matched_events.append(event)
 
@@ -182,6 +170,11 @@ def task_match_node(state: AgentState) -> AgentState:
     state["events_to_update"] = [event for event in matched_events if event.get("is_matched")]
     state["events_to_create"] = [event for event in matched_events if not event.get("is_matched")]
 
+    # Unresolved events for downstream nodes
+    state["unresolved_events"] = [
+    event for event in matched_events if event.get("match_method") == "unresolved"
+    ]
+    
     logger.info(
         f"Match summary: total={len(matched_events)}, "
         f"matched={len(state['events_to_update'])}, "

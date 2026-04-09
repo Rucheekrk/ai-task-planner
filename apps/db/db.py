@@ -117,6 +117,7 @@ def update_task_field(task_id, field_name, field_value):
     cur.close()
     conn.close()
 
+# Fetch active tasks (passed on for exact, partial or fuzzy match in match node)
 def fetch_active_tasks():
     """
     Fetch active/open tasks from DB for matching against new transcript tasks.
@@ -144,3 +145,44 @@ def fetch_active_tasks():
         rows = cur.fetchall()
 
     return [dict(row) for row in rows]
+
+
+# Fetch semantic task match (passed on for semantic match in match node)
+def fetch_semantic_task_match(task_text: str):
+    """
+    Find the nearest active task in DB using pgvector similarity search.
+    Returns the best matching task row with similarity score, or None.
+    """
+    if not task_text:
+        return None
+
+    embedding = get_embedding(task_text)
+    if not embedding:
+        return None
+
+    conn = get_connection()
+
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT
+                task_id,
+                task_text,
+                normalized_task_text,
+                owner,
+                status,
+                deadline,
+                blocker,
+                task_embedding,
+                1 - (task_embedding <=> %s::vector) AS similarity_score
+            FROM tasks
+            WHERE is_active = TRUE
+              AND task_embedding IS NOT NULL
+            ORDER BY task_embedding <=> %s::vector
+            LIMIT 1
+        """, (embedding, embedding))
+
+        row = cur.fetchone()
+
+    conn.close()
+
+    return dict(row) if row else None
