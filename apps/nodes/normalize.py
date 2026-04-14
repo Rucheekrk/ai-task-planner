@@ -2,6 +2,7 @@ from apps.llm import call_llm_json
 from apps.logger import get_logger
 from apps.state import AgentState
 from prompts.normalize.prompt import get_normalize_prompt
+from apps.utils.abbreviations import expand_abbreviations
 
 # Initialize logger for this node
 logger = get_logger("NORMALIZE")
@@ -21,10 +22,16 @@ def task_normalize_node(state: AgentState) -> AgentState:
         state["normalized_events"] = []
         return dict(state)
     
+    # Static abbreviation expansion: replace known abbreviations before LLM sees the tasks
+    expanded_tasks = [
+        {**task, "task": expand_abbreviations(task.get("task", ""))}
+        for task in tasks
+    ]
+
     # Prompt: Instruct LLM to extract additional information for task event. Normalize and classify tasks
     prompt = get_normalize_prompt(
         raw_input = state.get("raw_input", ""),
-        tasks = tasks
+        tasks = expanded_tasks
     )
 
     # Call LLM to generate normalized structured events

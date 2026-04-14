@@ -123,10 +123,17 @@ Output:
 - Do not reject a plan only because the parent task is broad or abstract
 - Reject the plan only if the overall plan is still too vague to execute
 
+### Priority and Dependency Rules
+- A PREREQUISITE task (one that must be completed FIRST so other tasks can proceed) should have equal or higher priority than the tasks that depend on it
+- A DEPENDENT task (one that runs AFTER others are done) is correctly low priority — it comes last by design
+- Tasks that are final steps such as UAT, QA testing, end-to-end testing, sign-off, or stakeholder review are correctly low priority — do NOT flag these as priority errors
+- Do NOT raise priority of a task simply because it depends on other tasks — dependency position does not imply high priority
+- Only flag a priority issue if a clear prerequisite (a task others depend on) is ranked LOWER than the tasks that need it to be done first
+
 ### Decision Rules
 - Mark is_valid = true only if the plan is reasonably clear, consistent, and usable
 - Mark is_valid = false if there are major issues that should be corrected
-- Mark is_valid = false if a prerequisite task is ranked lower than a dependent task without strong reason
+- Mark is_valid = false if a prerequisite task is ranked lower than a task that depends on it, without strong reason
 - Mark is_valid = false if subtasks are vague, too high-level, overlapping, or not actionable
 - Mark is_valid = false if the plan remains impractical even after considering the subtasks
 - Minor imperfections are acceptable if the plan is still usable
@@ -172,6 +179,32 @@ Output:
 {{
   "is_valid": true,
   "validation_feedback": "The task is broad but the subtasks make the plan actionable and usable."
+}}
+
+Valid Plan Example (final step correctly low priority):
+Input:
+[
+  {{
+    "task": "Install and configure WebSphere Application Server",
+    "priority": "high",
+    "subtasks": ["download installer", "run setup wizard", "configure server"]
+  }},
+  {{
+    "task": "Set up CI/CD pipeline",
+    "priority": "medium",
+    "subtasks": ["install Jenkins", "configure jobs", "connect to version control"]
+  }},
+  {{
+    "task": "Conduct UAT with business stakeholders",
+    "priority": "low",
+    "subtasks": ["schedule sessions", "prepare test cases", "collect feedback"]
+  }}
+]
+
+Output:
+{{
+  "is_valid": true,
+  "validation_feedback": "Tasks are clear and priorities are correct. UAT is appropriately low priority as a final verification step."
 }}
 
 Invalid Plan Example (dependency issue):

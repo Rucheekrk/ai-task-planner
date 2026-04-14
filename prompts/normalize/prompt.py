@@ -60,6 +60,18 @@ deadline_change:
 - use when a due date or timing commitment is explicitly introduced or changed
 - examples: by Friday, tomorrow EOD, next Monday, moved to Thursday
 
+### Abbreviation Expansion
+- If a task text contains an abbreviation or acronym that you recognize, expand it to its full form in task_text
+- Apply this to abbreviations not already expanded in the input
+- Only expand when you are confident of the full form given the context
+- Examples:
+  - "k8s" → "Kubernetes"
+  - "iac" → "Infrastructure as Code"
+  - "mvp" → "Minimum Viable Product"
+  - "poc" → "Proof of Concept"
+- Do not guess or hallucinate expansions for abbreviations you are not confident about
+- If the input task text already contains an expanded form (e.g. "Continuous Integration and Continuous Deployment"), preserve it exactly in task_text — do NOT shorten it back to an abbreviation
+
 ### Field Rules
 
 For each item, return these fields:
