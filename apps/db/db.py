@@ -28,14 +28,16 @@ def insert_task(task):
 
     cur.execute("""
         INSERT INTO tasks (
-                task_text, 
-                normalized_task_text, 
-                owner, 
-                status, 
-                deadline, 
+                task_text,
+                normalized_task_text,
+                owner,
+                status,
+                deadline,
                 blocker,
+                priority,
+                subtasks,
                 task_embedding)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING task_id
     """, (
         task.get("task_text"),
@@ -44,6 +46,8 @@ def insert_task(task):
         task.get("status"),
         task.get("deadline"),
         task.get("blocker"),
+        task.get("priority", "medium"),
+        task.get("subtasks", []),
         embedding,
     ))
 
@@ -90,7 +94,7 @@ def insert_event(event):
 # Update a single field of an existing task
 def update_task_field(task_id, field_name, field_value):
     # Allow only specific fields to prevent SQL injection
-    allowed_fields = {"status", "deadline", "owner", "blocker"}
+    allowed_fields = {"status", "deadline", "owner", "blocker", "priority"}
 
     if field_name not in allowed_fields:
         raise ValueError(f"Invalid field name: {field_name}")
@@ -117,6 +121,23 @@ def update_task_field(task_id, field_name, field_value):
     cur.close()
     conn.close()
 
+# Update subtasks array for an existing task (separate function due to array type)
+def update_task_subtasks(task_id, subtasks: list):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE tasks
+        SET subtasks = %s,
+            updated_at = NOW()
+        WHERE task_id = %s
+    """, (subtasks, task_id))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 # Fetch active tasks (passed on for exact, partial or fuzzy match in match node)
 def fetch_active_tasks():
     """
@@ -131,7 +152,7 @@ def fetch_active_tasks():
             status,
             deadline,
             blocker,
-            task_embedding
+            task_embedding,
             created_at,
             updated_at
         FROM tasks

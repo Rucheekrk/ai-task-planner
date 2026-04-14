@@ -9,10 +9,16 @@ CREATE TABLE tasks (
     status TEXT DEFAULT 'not_started',
     deadline TEXT,
     blocker TEXT,
+    priority TEXT DEFAULT 'medium',
+    subtasks TEXT[] DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration (run if table already exists):
+-- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
+-- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS subtasks TEXT[] DEFAULT '{}';
 
 --Extracted Events table: Stores every extracted event from input
 CREATE TABLE task_events (

@@ -24,7 +24,7 @@ def task_normalize_node(state: AgentState) -> AgentState:
     # Prompt: Instruct LLM to extract additional information for task event. Normalize and classify tasks
     prompt = get_normalize_prompt(
         raw_input = state.get("raw_input", ""),
-        task = tasks
+        tasks = tasks
     )
 
     # Call LLM to generate normalized structured events

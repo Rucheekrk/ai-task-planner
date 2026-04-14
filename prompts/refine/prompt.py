@@ -1,4 +1,4 @@
-def get_refine_prompt(tasks: list) -> str:
+def get_refine_prompt(validation_feedback: list) -> str:
     return f"""
 You are a refine-routing agent for an AI task planning system.
 
@@ -93,5 +93,5 @@ Return exactly:
 }}
 
 ### Validation Feedback
-{tasks}
+{validation_feedback}
 """

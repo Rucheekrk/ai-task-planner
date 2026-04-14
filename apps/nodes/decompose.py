@@ -13,13 +13,16 @@ def task_decompose_node(state: AgentState) -> AgentState:
 
     # Filter only new_task events for decomposition
     events_to_create = state.get("events_to_create", [])
+    events_to_update = state.get("events_to_update", [])
+
+    events_to_process = events_to_create + events_to_update
 
     tasks_to_decompose = [
         {
             "task": event["task_text"],
             "confidence": event.get("confidence", "medium")
         }
-        for event in events_to_create
+        for event in events_to_process
     ]
 
     # Handling new_task case: tasks_to_decompose is empty

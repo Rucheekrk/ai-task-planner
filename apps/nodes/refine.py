@@ -12,7 +12,9 @@ def task_refine_node(state: AgentState) -> AgentState:
     logger.info("Running Task Refine Router Node")
 
     # Prompt: decide which node to revisit based on validation feedback
-    prompt = get_refine_prompt(tasks = state.get("validation_feedback", []))
+    prompt = get_refine_prompt(
+        validation_feedback = state.get("validation_feedback", [])
+    )
 
 
     # LLM Call: determine refine target

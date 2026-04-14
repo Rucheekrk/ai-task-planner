@@ -18,19 +18,25 @@ Use only:
 - low
 
 ### Priority Meaning
-- high: urgent, foundational, time-sensitive, or blocking other important work
-- medium: important but not immediately urgent or blocking
-- low: useful but lower urgency or lower impact
+- high: urgent, foundational, time-sensitive, or blocking multiple important tasks
+- medium: important but not foundational or not blocking multiple tasks
+- low: useful but post-setup, optimization, or not blocking execution
 
 ### Core Principle
 A task that is a prerequisite or dependency for another important task should usually have equal or higher priority than the task it enables.
 
 ### Dependency and Execution Rules
 - If one task must be completed before another, prioritize the prerequisite equal or higher
-- Tasks that unblock other important tasks should be prioritized higher
-- Consider real execution order, not just perceived importance
+- Tasks that unblock multiple downstream tasks should be prioritized as high
+- Consider execution layers, not just strict sequence order
 - Do not assign a dependent task higher priority than its prerequisite without strong reason
-- Tasks that affect readiness or quality for another task are foundational
+- Tasks that form the base system or core setup should be treated as foundational
+- Tasks that are configuration, integration, or optimization after setup should be lower priority
+
+### Layer-Based Priority Guidance
+- High → foundational setup tasks that multiple other tasks depend on
+- Medium → core execution tasks that are important but not foundational blockers
+- Low → post-setup tasks such as configuration, integration, tuning, or optimization
 
 Examples:
 Input:
@@ -68,7 +74,8 @@ Output:
 - Consider urgency
 - Consider dependencies
 - Consider what unlocks other tasks
-- Consider real-world execution order
+- Consider execution layers (foundation vs execution vs optimization)
+- Do not rely only on strict sequence order
 - Do not invent new tasks or subtasks
 
 ### Consistency Rules
