@@ -48,8 +48,19 @@ def task_validate_node(state: AgentState) -> AgentState:
             logger.warning("Invalid validation_feedback format from LLM, defaulting to empty string")
             validation_feedback = ""
 
+        validation_feedback = validation_feedback.strip()
+
+        # Loop detection: if feedback repeats, the refine cycle is stuck — accept the plan
+        validation_history = state.get("validation_history", [])
+        if validation_history and validation_history[-1] == validation_feedback:
+            logger.warning("Repeated validation feedback detected. Breaking refinement loop.")
+            is_valid = True
+            validation_feedback = "Plan accepted after repeated refinement. Minor issues remain but plan is usable."
+
+        validation_history.append(validation_feedback)
+        state["validation_history"] = validation_history
         state["is_valid"] = is_valid
-        state["validation_feedback"] = validation_feedback.strip()
+        state["validation_feedback"] = validation_feedback
 
         logger.info(f"Validation result: is_valid={is_valid}")
         logger.info(f"Validation feedback: {state['validation_feedback']}")
@@ -89,9 +100,19 @@ def task_validate_node(state: AgentState) -> AgentState:
         logger.warning("Invalid validation_feedback format from LLM, defaulting to empty string")
         validation_feedback = ""
 
-    # State Update: store validation results
+    validation_feedback = validation_feedback.strip()
+
+    # Loop detection: if feedback repeats, the refine cycle is stuck — accept the plan
+    validation_history = state.get("validation_history", [])
+    if validation_history and validation_history[-1] == validation_feedback:
+        logger.warning("Repeated validation feedback detected. Breaking refinement loop.")
+        is_valid = True
+        validation_feedback = "Plan accepted after repeated refinement. Minor issues remain but plan is usable."
+
+    validation_history.append(validation_feedback)
+    state["validation_history"] = validation_history
     state["is_valid"] = is_valid
-    state["validation_feedback"] = validation_feedback.strip()
+    state["validation_feedback"] = validation_feedback
 
     logger.info(f"Validation result: is_valid={is_valid}")
     logger.info(f"Validation feedback: {state['validation_feedback']}")

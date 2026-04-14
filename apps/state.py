@@ -23,6 +23,7 @@ class AgentState(TypedDict):
     # Validation loop
     is_valid: bool  # validation result
     validation_feedback: str  # feedback from validator
+    validation_history: List[str]  # feedback from all previous validation iterations
     refine_target: str  # next node to revisit if invalid
 
     # Final output

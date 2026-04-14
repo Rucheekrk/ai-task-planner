@@ -11,9 +11,15 @@ def task_refine_node(state: AgentState) -> AgentState:
     logger.info("=" * 60)  # separator for each new node run
     logger.info("Running Task Refine Router Node")
 
-    # Prompt: decide which node to revisit based on validation feedback
+    current_iteration = state.get("current_iteration", 0)
+    max_iterations = state.get("max_iterations", 4)
+
+    # Prompt: decide which node to revisit based on validation feedback and iteration context
     prompt = get_refine_prompt(
-        validation_feedback = state.get("validation_feedback", [])
+        validation_feedback=state.get("validation_feedback", ""),
+        validation_history=state.get("validation_history", []),
+        current_iteration=current_iteration,
+        max_iterations=max_iterations,
     )
 
 

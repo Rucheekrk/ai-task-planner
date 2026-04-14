@@ -35,9 +35,10 @@ if __name__ == "__main__":
         "prioritized_tasks": [],
         "is_valid": False,
         "validation_feedback": "",
+        "validation_history": [],
         "refine_target": "",
         "final_output": {},
-        "max_iterations": 4,
+        "max_iterations": 5,
         "current_iteration": 0,
     }
 
@@ -53,6 +54,7 @@ if __name__ == "__main__":
     logger.info(f"Prioritized tasks count: {len(final_state['prioritized_tasks'])}")
     logger.info(f"Validation status: {final_state['is_valid']}")
     logger.info(f"Validation feedback: {final_state['validation_feedback']}")
+    logger.info(f"Validation history: {final_state['validation_history']}")
     logger.info(f"refine target: {final_state['refine_target']}")
     logger.info(f"Final output status: {final_state['final_output'].get('status', '')}")
 

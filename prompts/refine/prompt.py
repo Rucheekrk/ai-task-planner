@@ -1,4 +1,4 @@
-def get_refine_prompt(validation_feedback: list) -> str:
+def get_refine_prompt(validation_feedback: str, validation_history: list, current_iteration: int, max_iterations: int) -> str:
     return f"""
 You are a refine-routing agent for an AI task planning system.
 
@@ -91,6 +91,16 @@ Return exactly:
 {{
   "refine_target": "prioritize"
 }}
+
+### Iteration Context
+- Current iteration: {current_iteration} of {max_iterations}
+- Feedback history across all iterations: {validation_history}
+
+### Iteration-Aware Rules
+- If the current feedback is the same as a previous iteration's feedback, the last routing choice did not fix the issue
+- In that case, choose a DIFFERENT refine target than what was chosen before, or choose "validate" to accept the plan
+- If you are on the last iteration (current_iteration equals max_iterations), choose "validate" to avoid an infinite loop
+- Do not route to the same target twice in a row if feedback has not changed
 
 ### Validation Feedback
 {validation_feedback}
