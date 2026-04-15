@@ -1,0 +1,62 @@
+EXPECTED NORMALIZED EVENTS
+
+1.
+event_type: new_task
+task_text: Set up Continuous Integration and Continuous Deployment pipeline
+owner: Alex
+deadline: April 18th
+status: null
+blocker: null
+dependency: null
+
+2.
+event_type: new_task
+task_text: Write unit and integration tests for authentication module
+owner: Priya
+deadline: null
+status: null
+blocker: null
+dependency: null
+
+3.
+event_type: new_task
+task_text: Integrate payment gateway with checkout flow
+owner: Jordan
+deadline: null
+status: null
+blocker: null
+dependency: null
+
+4.
+event_type: new_task
+task_text: Conduct end-to-end QA testing on staging
+owner: null
+deadline: April 28th
+status: null
+blocker: null
+dependency: null
+
+EXPECTED PRIORITY ORDER
+1. Set up Continuous Integration and Continuous Deployment pipeline — high
+   (prerequisite: earliest hard deadline April 18th, automated builds must exist before tests can run)
+2. Write unit and integration tests for authentication module — high
+   (core module testing, must happen before QA sign-off)
+3. Integrate payment gateway with checkout flow — high
+   (core feature, must be complete before QA can validate end-to-end)
+4. Conduct end-to-end QA testing on staging — low
+   (final verification step — correctly LOW priority, runs after all other tasks are done)
+
+CRITICAL VALIDATION RULES THIS INPUT TESTS
+- QA testing is the LAST step and MUST remain low priority
+  The validator must NOT flag QA as a priority error just because it has a deadline
+  or because it depends on other tasks — dependency position does not mean high priority
+- CI/CD pipeline is a PREREQUISITE and MUST be high priority
+  It has the earliest deadline (April 18th) and all other work depends on it
+
+EXPECTED THINGS MODEL SHOULD NOT PICK
+- Project title:
+  "Project: Mobile App Launch Preparation"
+- General framing:
+  "The following work needs to be completed before the mobile app goes live"
+- Ownership statements reworded as separate tasks:
+  "Alex is responsible for CI/CD" — should enrich task owner field only

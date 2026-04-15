@@ -1,0 +1,61 @@
+EXPECTED NORMALIZED EVENTS
+
+1.
+event_type: new_task
+task_text: Install and configure WebSphere Application Server on production server
+owner: Alex
+deadline: April 20th
+status: null
+blocker: null
+dependency: null
+
+2.
+event_type: new_task
+task_text: Set up Continuous Integration and Continuous Deployment pipeline using Jenkins
+owner: Priya
+deadline: null
+status: null
+blocker: null
+dependency: null
+
+3.
+event_type: new_task
+task_text: Expose backend services via REST API
+owner: null
+deadline: null
+status: null
+blocker: null
+dependency: null
+
+4.
+event_type: new_task
+task_text: Conduct UAT with business stakeholders
+owner: null
+deadline: null
+status: null
+blocker: null
+dependency: null
+
+EXPECTED ABBREVIATION EXPANSIONS
+- WAS → WebSphere Application Server
+  task_text must contain "WebSphere Application Server", NOT "WAS"
+- CI/CD → Continuous Integration and Continuous Deployment
+  task_text must contain the expanded form, NOT "CI/CD"
+
+EXPECTED PRIORITY ORDER
+1. Install and configure WebSphere Application Server on production server — high
+   (prerequisite: Alex owns it, hard deadline April 20th, other tasks depend on it being up)
+2. Set up Continuous Integration and Continuous Deployment pipeline — high
+   (core infrastructure, enables automated builds)
+3. Expose backend services via REST API — medium
+   (functional task, no owner or deadline specified)
+4. Conduct UAT with business stakeholders — low
+   (final verification step, runs after all other work is complete)
+
+EXPECTED THINGS MODEL SHOULD NOT PICK
+- Project title:
+  "Project: Middleware and DevOps Setup"
+- General framing:
+  "The team needs to complete the following before go-live"
+- Ownership statements reworded as separate tasks:
+  "Alex owns the WAS setup" should enrich task 1's owner field, NOT become a separate event
