@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS vector;
 
 --Task table: Stores current latest state of each task
 CREATE TABLE tasks (
@@ -12,6 +13,7 @@ CREATE TABLE tasks (
     priority TEXT DEFAULT 'medium',
     subtasks TEXT[] DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    task_embedding vector(384),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -19,6 +21,7 @@ CREATE TABLE tasks (
 -- Migration (run if table already exists):
 -- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
 -- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS subtasks TEXT[] DEFAULT '{}';
+-- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_embedding vector(384);
 
 --Extracted Events table: Stores every extracted event from input
 CREATE TABLE task_events (
@@ -76,3 +79,16 @@ CREATE INDEX idx_task_events_event_type ON task_events(event_type);
 CREATE INDEX idx_task_events_created_at ON task_events(created_at);
 CREATE INDEX idx_unresolved_events_event_type ON unresolved_events(event_type);
 CREATE INDEX idx_unresolved_events_created_at ON unresolved_events(created_at);
+
+-- pgvector HNSW index for fast approximate nearest-neighbour semantic search.
+-- hnsw is preferred over ivfflat: works on empty tables, no reindex needed as data grows,
+-- and delivers faster + more accurate queries at the cost of slightly more memory.
+-- vector_cosine_ops matches the cosine similarity used in fetch_semantic_task_match().
+CREATE INDEX idx_tasks_embedding_hnsw ON tasks
+    USING hnsw (task_embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+
+-- Migration (run against existing DB — only needed if schema was applied before this index was added):
+-- CREATE INDEX IF NOT EXISTS idx_tasks_embedding_hnsw ON tasks
+--     USING hnsw (task_embedding vector_cosine_ops)
+--     WITH (m = 16, ef_construction = 64);
