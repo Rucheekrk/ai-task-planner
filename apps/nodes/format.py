@@ -6,6 +6,7 @@ from apps.db.db import (
     update_task_field,
     update_task_subtasks,
     fetch_task_by_normalized_text,
+    log_unresolved_event,
 )
 import re
 
@@ -20,9 +21,9 @@ def task_format_node(state: AgentState) -> AgentState:
 
     # Store new tasks in DB and apply updates before preparing final output
     store_tasks(state)
-    handle_unresolved_events(state)  # must run before store_events so task_ids are assigned
     store_events(state)
     apply_task_updates(state)
+    log_unresolved_events(state)
 
     # Convert prioritized tasks into clean final output format
     formatted_tasks = []
@@ -128,63 +129,6 @@ def store_tasks(state: AgentState):
             event["match_confidence"] = "high"  # new tasks are always high confidence
 
 
-def handle_unresolved_events(state: AgentState):
-    # Unresolved events are update-type events (status_change, deadline_change, etc.)
-    # that the match node could not link to any existing DB task.
-    # Rather than dropping them silently, we create a new task from the available
-    # fields so the information is preserved. The event is marked "unresolved_created"
-    # so it is distinguishable from a normal new_task insert.
-    unresolved_events = state.get("unresolved_events", [])
-
-    if not unresolved_events:
-        return
-
-    logger.warning(f"{len(unresolved_events)} unresolved event(s) found — creating new tasks as fallback")
-
-    for event in unresolved_events:
-        task_text = event.get("task_text", "").strip()
-        if not task_text:
-            logger.warning("Skipping unresolved event with empty task_text")
-            continue
-
-        norm_text = normalize_text(task_text)
-
-        # Deduplication guard: avoid inserting if a task with this text already exists
-        existing_task_id = fetch_task_by_normalized_text(norm_text)
-        if existing_task_id:
-            logger.info(f"Unresolved event dedup: task already exists (task_id={existing_task_id}), linking '{task_text}'")
-            event["matched_task_id"] = existing_task_id
-            event["is_matched"] = True
-            event["matched_task_text"] = task_text
-            event["match_method"] = "unresolved_dedup"
-            event["match_confidence"] = "high"
-            continue
-
-        task_data = {
-            "task_text": task_text,
-            "normalized_task_text": norm_text,
-            "owner": event.get("owner"),
-            "status": event.get("status") or "not_started",
-            "deadline": event.get("deadline"),
-            "blocker": event.get("blocker"),
-            "priority": "medium",  # no priority enrichment available for unresolved events
-            "subtasks": [],
-        }
-
-        try:
-            task_id = insert_task(task_data)
-            logger.warning(f"Created new task from unresolved event: '{task_text}' -> task_id={task_id}")
-        except Exception as e:
-            logger.error(f"Failed to create task from unresolved event '{task_text}': {e}")
-            continue
-
-        event["matched_task_id"] = task_id
-        event["is_matched"] = True
-        event["matched_task_text"] = task_text
-        event["match_method"] = "unresolved_created"
-        event["match_confidence"] = "low"  # low confidence because the original match failed
-
-
 def store_events(state: AgentState):
     # Insert all matched events into task_events history table
     matched_events = state.get("matched_events", [])
@@ -240,3 +184,25 @@ def apply_task_updates(state: AgentState):
 
         if enriched.get("subtasks") is not None:
             update_task_subtasks(task_id, enriched["subtasks"])
+
+
+def log_unresolved_events(state: AgentState):
+    # Write unresolved events to the unresolved_events review queue — no task is created.
+    # These events failed all 4 match stages and require human review before any action is taken.
+    unresolved_events = state.get("unresolved_events", [])
+
+    if not unresolved_events:
+        return
+
+    raw_input = state.get("raw_input", "")
+
+    for event in unresolved_events:
+        task_text = event.get("task_text", "").strip()
+        if not task_text:
+            continue
+
+        try:
+            log_unresolved_event(event, source_input=raw_input)
+            logger.warning(f"Unresolved event logged for review: '{task_text}' (type={event.get('event_type')})")
+        except Exception as e:
+            logger.error(f"Failed to log unresolved event '{task_text}': {e}")

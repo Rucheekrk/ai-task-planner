@@ -37,8 +37,42 @@ CREATE TABLE task_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Unresolved Events table: Human review queue for update events that matched no existing task.
+-- These are NOT auto-created as tasks — they require human review to decide:
+-- link to an existing task, approve as new, or discard.
+CREATE TABLE unresolved_events (
+    unresolved_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type TEXT NOT NULL,
+    task_text TEXT NOT NULL,
+    owner TEXT,
+    status TEXT,
+    deadline TEXT,
+    blocker TEXT,
+    dependency TEXT,
+    reason TEXT NOT NULL DEFAULT 'no_match_found',
+    source_input TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Migration (run if tables already exist):
+-- CREATE TABLE IF NOT EXISTS unresolved_events (
+--     unresolved_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     event_type TEXT NOT NULL,
+--     task_text TEXT NOT NULL,
+--     owner TEXT,
+--     status TEXT,
+--     deadline TEXT,
+--     blocker TEXT,
+--     dependency TEXT,
+--     reason TEXT NOT NULL DEFAULT 'no_match_found',
+--     source_input TEXT,
+--     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+
 CREATE INDEX idx_tasks_normalized_task_text ON tasks(normalized_task_text);
 CREATE INDEX idx_tasks_owner ON tasks(owner);
 CREATE INDEX idx_task_events_task_id ON task_events(task_id);
 CREATE INDEX idx_task_events_event_type ON task_events(event_type);
 CREATE INDEX idx_task_events_created_at ON task_events(created_at);
+CREATE INDEX idx_unresolved_events_event_type ON unresolved_events(event_type);
+CREATE INDEX idx_unresolved_events_created_at ON unresolved_events(created_at);

@@ -138,6 +138,39 @@ def update_task_subtasks(task_id, subtasks: list):
     conn.close()
 
 
+# Write an unresolved event to the unresolved_events review queue (no task is created)
+def log_unresolved_event(event: dict, source_input: str = ""):
+    """
+    Persist an unresolved update event to the unresolved_events table for human review.
+    Called when a non-new_task event could not be matched to any existing DB task after
+    all 4 match stages (exact, partial, fuzzy, semantic).
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO unresolved_events (
+            event_type, task_text, owner, status,
+            deadline, blocker, dependency, reason, source_input
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        event.get("event_type"),
+        event.get("task_text"),
+        event.get("owner"),
+        event.get("status"),
+        event.get("deadline"),
+        event.get("blocker"),
+        event.get("dependency"),
+        "no_match_found",
+        source_input,
+    ))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 # Fetch an existing active task by exact normalized text (used for deduplication before insert)
 def fetch_task_by_normalized_text(normalized_text: str):
     """
