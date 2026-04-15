@@ -138,6 +138,26 @@ def update_task_subtasks(task_id, subtasks: list):
     conn.close()
 
 
+# Fetch an existing active task by exact normalized text (used for deduplication before insert)
+def fetch_task_by_normalized_text(normalized_text: str):
+    """
+    Return the task_id of an existing active task whose normalized_task_text
+    matches exactly, or None if no such task exists.
+    """
+    conn = get_connection()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT task_id
+            FROM tasks
+            WHERE normalized_task_text = %s
+              AND is_active = TRUE
+            LIMIT 1
+        """, (normalized_text,))
+        row = cur.fetchone()
+    conn.close()
+    return row["task_id"] if row else None
+
+
 # Fetch active tasks (passed on for exact, partial or fuzzy match in match node)
 def fetch_active_tasks():
     """

@@ -5,6 +5,7 @@ from apps.db.db import (
     insert_event,
     update_task_field,
     update_task_subtasks,
+    fetch_task_by_normalized_text,
 )
 import re
 
@@ -99,15 +100,24 @@ def store_tasks(state: AgentState):
                 "subtasks": enriched.get("subtasks", []),
             }
 
-            logger.info(f"Attempting to insert new task: {task_data['task_text']}")  # debug before insert
+            # Deduplication guard: skip insert if the same normalized text already exists in DB.
+            # This catches duplicates that slipped past the match node (e.g. slight LLM text variation across runs).
+            existing_task_id = fetch_task_by_normalized_text(norm_text)
+            if existing_task_id:
+                logger.info(f"Dedup: task already exists (task_id={existing_task_id}), skipping insert for '{task_data['task_text']}'")
+                event["matched_task_id"] = existing_task_id
+                event["is_matched"] = True
+                event["matched_task_text"] = event.get("task_text")
+                event["match_method"] = "dedup"
+                event["match_confidence"] = "high"
+                continue
 
-            # Insert new task and attach generated task_id back to event
-            # task_id = insert_task(task_data)
+            logger.info(f"Attempting to insert new task: {task_data['task_text']}")
             try:
                 task_id = insert_task(task_data)
-                logger.info(f"Inserted task successfully: {task_id}")  # debug after insert
+                logger.info(f"Inserted task successfully: {task_id}")
             except Exception as e:
-                logger.error(f"Task insert failed for '{task_data['task_text']}': {e}")  # debug insert failure
+                logger.error(f"Task insert failed for '{task_data['task_text']}': {e}")
                 continue
 
             event["matched_task_id"] = task_id
