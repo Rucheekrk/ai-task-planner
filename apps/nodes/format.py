@@ -54,15 +54,34 @@ def task_format_node(state: AgentState) -> AgentState:
     # Clear refine target after successful completion
     state["refine_target"] = ""
 
-    # Prepare final output payload
-    state["final_output"] = {
-        "intent": state["intent"],
-        "tasks_count": len(formatted_tasks),
-        "tasks": formatted_tasks,
-        "status": "completed"
+    # Summarise unresolved events for the agent (strip source_input — full transcript not needed)
+    unresolved_summary = [
+        {k: v for k, v in event.items() if k != "source_input"}
+        for event in state.get("unresolved_events", [])
+    ]
+
+    # Summarise validation outcome for the agent
+    current_iteration = state.get("current_iteration", 0)
+    max_iterations = state.get("max_iterations", 5)
+    validation_outcome = {
+        "passed": state.get("is_valid", False),
+        "iterations": current_iteration,
+        "hit_max_iterations": current_iteration >= max_iterations,
+        "final_feedback": state.get("validation_feedback", ""),
     }
 
-    logger.info(f"Final output prepared with {len(formatted_tasks)} tasks")
+    # Prepare final output payload
+    state["final_output"] = {
+        "tasks_count": len(formatted_tasks),
+        "tasks": formatted_tasks,
+        "unresolved_events": unresolved_summary,
+        "validation_outcome": validation_outcome,
+        "status": "completed",
+    }
+
+    logger.info(f"Final output prepared with {len(formatted_tasks)} tasks, "
+                f"{len(unresolved_summary)} unresolved events, "
+                f"validation passed={validation_outcome['passed']}")
 
     return state
 

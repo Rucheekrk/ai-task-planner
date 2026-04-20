@@ -4,7 +4,6 @@ from typing import TypedDict, List, Dict, Any
 # Shared state passed across all LangGraph nodes
 class AgentState(TypedDict):
     raw_input: str  # original user input
-    intent: str  # classified intent (task_planning / unclear)
 
     # Core pipeline outputs
     tasks: List[Dict[str, Any]]  # extracted tasks

@@ -1,63 +1,25 @@
-from apps.logger import get_logger
-from apps.state import AgentState
-from apps.graph import build_graph
-import json
 import sys
+import json
 
-# Initialize logger for main entry
+from dotenv import load_dotenv
+
+from apps.agent import run_agent
+from apps.logger import get_logger
+
+load_dotenv()
 logger = get_logger("MAIN")
 
 
 if __name__ == "__main__":
-    # Build LangGraph pipeline
-    graph = build_graph()
-
-    # Multi-line User Input (double Enter to submit)
     print("Reading input from stdin... (use: python3 main.py < input.txt)\n")
-
-    # Read full input stream (supports large transcripts)
     user_input = sys.stdin.read().strip()
 
-    # # Optional: quick preview for debugging
-    # print("--- INPUT PREVIEW ---")
-    # print(user_input[:])
-    # print("--- END PREVIEW ---\n")
+    result = run_agent(user_input)
 
+    logger.info(f"Intent: {result.get('plan', {}).get('intent')}")
+    logger.info(f"Tasks processed: {result.get('pipeline_output', {}).get('tasks_count', 0)}")
+    logger.info(f"Tool calls made: {len(result.get('tool_results', []))}")
+    logger.info(f"Session summary: {result.get('output', '')}")
 
-    # Initial state: user_input + empty placeholders
-    initial_state: AgentState = {
-        "raw_input": user_input,
-        "intent": "",
-        "tasks": [],
-        "normalized_events": [],
-        "matched_events": [],
-        "decomposed_tasks": [],
-        "prioritized_tasks": [],
-        "is_valid": False,
-        "validation_feedback": "",
-        "validation_history": [],
-        "refine_target": "",
-        "final_output": {},
-        "max_iterations": 5,
-        "current_iteration": 0,
-    }
-
-    # Execute graph
-    final_state = graph.invoke(initial_state)
-
-    # Logging: key pipeline outputs
-    logger.info(f"Intent result: {final_state['intent']}")
-    logger.info(f"Extracted tasks count: {len(final_state['tasks'])}")
-    logger.info(f"Normalized tasks count: {len(final_state['normalized_events'])}")
-    logger.info(f"Matched tasks count: {len(final_state['matched_events'])}")
-    logger.info(f"Decomposed tasks count: {len(final_state['decomposed_tasks'])}")
-    logger.info(f"Prioritized tasks count: {len(final_state['prioritized_tasks'])}")
-    logger.info(f"Validation status: {final_state['is_valid']}")
-    logger.info(f"Validation feedback: {final_state['validation_feedback']}")
-    logger.info(f"Validation history: {final_state['validation_history']}")
-    logger.info(f"refine target: {final_state['refine_target']}")
-    logger.info(f"Final output status: {final_state['final_output'].get('status', '')}")
-
-    # Output: full state for debugging
     print()
-    print(json.dumps(final_state, indent=1))
+    print(json.dumps(result, indent=2, default=str))

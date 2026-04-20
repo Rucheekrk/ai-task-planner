@@ -1,7 +1,6 @@
 from langgraph.graph import StateGraph, END
 
 from apps.state import AgentState
-from apps.nodes.intent import intent_classification_node
 from apps.nodes.extract import task_extract_node
 from apps.nodes.normalize import task_normalize_node
 from apps.nodes.match import task_match_node
@@ -10,19 +9,6 @@ from apps.nodes.prioritize import task_prioritize_node
 from apps.nodes.validate import task_validate_node
 from apps.nodes.refine import task_refine_node
 from apps.nodes.format import task_format_node
-
-
-# Intent Router: decide next step after intent classification
-def intent_router(state: AgentState) -> str:
-    # Read intent from state with fallback to 'unclear'
-    intent = state.get("intent", "unclear")
-
-    # Validate intent value against allowed options
-    valid_intents = {"task_planning", "unclear"}
-    if intent not in valid_intents:
-        intent = "unclear"
-
-    return "extract" if intent == "task_planning" else "final"
 
 
 # Validate Router: decide next step after validation
@@ -51,7 +37,6 @@ def build_graph():
     graph = StateGraph(AgentState)
 
     # Nodes
-    graph.add_node("intent", intent_classification_node)
     graph.add_node("extract", task_extract_node)
     graph.add_node("normalize", task_normalize_node)
     graph.add_node("match", task_match_node)
@@ -62,17 +47,7 @@ def build_graph():
     graph.add_node("final", task_format_node)
 
     # Entry point
-    graph.set_entry_point("intent")
-
-    # Intent routing
-    graph.add_conditional_edges(
-        "intent",
-        intent_router,
-        {
-            "extract": "extract",
-            "final": "final",
-        },
-    )
+    graph.set_entry_point("extract")
 
     # Main flow
     graph.add_edge("extract", "normalize")
