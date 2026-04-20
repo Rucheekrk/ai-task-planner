@@ -1,12 +1,17 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from pgvector.psycopg2 import register_vector  # enable pgvector support for psycopg2
+from pgvector.psycopg2 import register_vector
 from apps.utils.embeddings import get_embedding
 import os
 
 
-# Create and return a PostgreSQL database connection
+# ---------------------------------------------------------------------------
+# Connection
+# ---------------------------------------------------------------------------
+
 def get_connection():
+    # Open a new psycopg2 connection using env-configured credentials.
+    # register_vector() is required to enable pgvector type support for this connection.
     conn = psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=os.getenv("DB_PORT", "5432"),
@@ -14,17 +19,21 @@ def get_connection():
         user=os.getenv("DB_USER", "postgres"),
         password=os.getenv("DB_PASSWORD", "postgres"),
     )
-    register_vector(conn) #required for pgvector
-
+    register_vector(conn)
     return conn
 
 
-# Insert a new task into the tasks table and return its task_id
+# ---------------------------------------------------------------------------
+# Task writes
+# ---------------------------------------------------------------------------
+
 def insert_task(task):
+    # Generate a 384-dim embedding before insert so the task is immediately
+    # available for semantic similarity search in the match node
+    embedding = get_embedding(task.get("task_text"))
+
     conn = get_connection()
     cur = conn.cursor()
-
-    embedding = get_embedding(task.get("task_text")) # generating embedding before insert
 
     cur.execute("""
         INSERT INTO tasks (
@@ -52,7 +61,6 @@ def insert_task(task):
     ))
 
     task_id = cur.fetchone()[0]
-
     conn.commit()
     cur.close()
     conn.close()
@@ -60,8 +68,9 @@ def insert_task(task):
     return task_id
 
 
-# Insert every extracted event into the task_events history table
 def insert_event(event):
+    # Append an immutable event record to task_events.
+    # Every matched event (new task, update, blocker, etc.) is logged here for audit history.
     conn = get_connection()
     cur = conn.cursor()
 
@@ -91,19 +100,19 @@ def insert_event(event):
     conn.close()
 
 
-# Update a single field of an existing task
 def update_task_field(task_id, field_name, field_value):
-    # Allow only specific fields to prevent SQL injection
+    # Update a single field on an existing task row.
+    # field_name is validated against an allowlist to prevent SQL injection
+    # before being interpolated into the query string.
     allowed_fields = {"status", "deadline", "owner", "blocker", "priority"}
 
     if field_name not in allowed_fields:
         raise ValueError(f"Invalid field name: {field_name}")
-    
-    # Create DB connection
+
     conn = get_connection()
     cur = conn.cursor()
 
-    # Build dynamic SQL safely using allowed field names
+    # Safe to interpolate field_name here — it has been validated against the allowlist above
     query = f"""
         UPDATE tasks
         SET {field_name} = %s,
@@ -111,18 +120,16 @@ def update_task_field(task_id, field_name, field_value):
         WHERE task_id = %s
     """
 
-    # Execute update query
     cur.execute(query, (field_value, task_id))
-
-    # Commit transaction
     conn.commit()
-
-    # Close DB connection
     cur.close()
     conn.close()
 
-# Update subtasks array for an existing task (separate function due to array type)
+
 def update_task_subtasks(task_id, subtasks: list):
+    # Update the subtasks array for an existing task.
+    # Kept separate from update_task_field because subtasks is a TEXT[] array type,
+    # not a simple scalar — psycopg2 handles the array serialization here.
     conn = get_connection()
     cur = conn.cursor()
 
@@ -138,13 +145,11 @@ def update_task_subtasks(task_id, subtasks: list):
     conn.close()
 
 
-# Write an unresolved event to the unresolved_events review queue (no task is created)
 def log_unresolved_event(event: dict, source_input: str = ""):
-    """
-    Persist an unresolved update event to the unresolved_events table for human review.
-    Called when a non-new_task event could not be matched to any existing DB task after
-    all 4 match stages (exact, partial, fuzzy, semantic).
-    """
+    # Write a failed-match update event to the unresolved_events review queue.
+    # Called when a non-new_task event could not be matched to any existing DB task
+    # after all 4 match stages (exact, partial, fuzzy, semantic).
+    # No task is created — these events require human review before any action is taken.
     conn = get_connection()
     cur = conn.cursor()
 
@@ -171,12 +176,14 @@ def log_unresolved_event(event: dict, source_input: str = ""):
     conn.close()
 
 
-# Fetch an existing active task by exact normalized text (used for deduplication before insert)
+# ---------------------------------------------------------------------------
+# Task reads
+# ---------------------------------------------------------------------------
+
 def fetch_task_by_normalized_text(normalized_text: str):
-    """
-    Return the task_id of an existing active task whose normalized_task_text
-    matches exactly, or None if no such task exists.
-    """
+    # Check if a task with this normalized text already exists in the DB.
+    # Used as a deduplication guard in store_tasks — prevents inserting the same
+    # task twice when LLM output varies slightly across runs.
     conn = get_connection()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
@@ -191,11 +198,11 @@ def fetch_task_by_normalized_text(normalized_text: str):
     return row["task_id"] if row else None
 
 
-# Fetch active tasks (passed on for exact, partial or fuzzy match in match node)
 def fetch_active_tasks():
-    """
-    Fetch active/open tasks from DB for matching against new transcript tasks.
-    """
+    # Fetch all active tasks for the match node to compare incoming events against.
+    # Returns all columns needed for exact, partial, and fuzzy matching.
+    # task_embedding is included here for completeness but semantic search uses
+    # fetch_semantic_task_match() with a vector query instead.
     query = """
         SELECT
             task_id,
@@ -221,12 +228,11 @@ def fetch_active_tasks():
     return [dict(row) for row in rows]
 
 
-# Fetch semantic task match (passed on for semantic match in match node)
 def fetch_semantic_task_match(task_text: str):
-    """
-    Find the nearest active task in DB using pgvector similarity search.
-    Returns the best matching task row with similarity score, or None.
-    """
+    # Find the closest active task using pgvector cosine similarity (<=> operator).
+    # Returns the single best match row with a similarity_score field,
+    # or None if no tasks exist or the input is empty.
+    # The match node applies a minimum threshold of 0.60 before accepting the result.
     if not task_text:
         return None
 

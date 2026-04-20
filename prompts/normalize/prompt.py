@@ -1,3 +1,6 @@
+# Prompt for the normalize node — instructs the LLM to enrich each extracted task
+# with structured fields (owner, status, deadline, blocker, dependency, event_type).
+# Uses the original raw input as context so field values are grounded in the source text.
 def get_normalize_prompt(raw_input: str, tasks: list) -> str:
     return f"""
 You are a task normalization and classification agent for an AI project manager system.

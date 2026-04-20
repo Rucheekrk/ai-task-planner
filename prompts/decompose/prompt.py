@@ -1,3 +1,6 @@
+# Prompt for the decompose node — instructs the LLM to break each task into
+# 2–5 specific, actionable subtasks that clarify how to execute the parent task.
+# Subtasks must be directly related to the parent — no extra inferred requirements.
 def get_decompose_prompt(tasks: str) -> str:
     return f"""
 You are a task decompose agent for an AI task planning system.

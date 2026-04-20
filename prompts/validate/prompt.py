@@ -1,3 +1,9 @@
+# Prompts for the validate node — two variants depending on whether a plan exists:
+#   get_empty_plan_validate_prompt: used when prioritized_tasks is empty; checks whether
+#     the source input genuinely has no actionable tasks (valid empty) or missed extractions.
+#   get_quality_validate_prompt: used when a plan exists; evaluates task clarity,
+#     subtask quality, and priority/dependency coherence.
+# Both return { is_valid: bool, validation_feedback: str }.
 def get_empty_plan_validate_prompt(source_input: str, tasks: list) -> str:
     return f"""
 You are a validate agent for an AI task planning system.

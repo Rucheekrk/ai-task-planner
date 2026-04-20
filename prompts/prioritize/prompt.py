@@ -1,3 +1,6 @@
+# Prompt for the prioritize node — instructs the LLM to assign high/medium/low priority
+# to each task based on urgency, execution dependencies, and layer order.
+# Core rule: prerequisite tasks must have equal or higher priority than the tasks they unblock.
 def get_prioritize_prompt(tasks: str) -> str:
     return f"""
 You are a task prioritize agent for an AI task planning system.

@@ -74,3 +74,4 @@ langchain-mcp-adapters
 langchain-openai
 langgraph-checkpoint-postgres
 psycopg[binary]
+openpyxl

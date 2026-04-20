@@ -5,20 +5,28 @@ from functools import lru_cache
 from typing import Any, Dict, List, TypedDict
 
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 
 from apps.graph import build_graph
-from apps.llm import call_llm_json
 from apps.logger import get_logger
 
 load_dotenv()
 logger = get_logger("AGENT")
+
+# Maximum number of plan → execute → observe cycles before the agent stops.
+# Keeps token cost and latency bounded — 3 iterations covers the common case
+# of pipeline run + verification + one follow-up tool call.
+MAX_REACT_ITERATIONS = 3
 
 
 # ---------------------------------------------------------------------------
 # Pipeline wrapper
 # ---------------------------------------------------------------------------
 
+# Default blank state passed to the pipeline on every invocation.
+# Each run gets a fresh copy so prior pipeline state never bleeds across agent calls.
 PIPELINE_INITIAL_STATE = {
     "tasks": [],
     "normalized_events": [],
@@ -38,6 +46,9 @@ PIPELINE_INITIAL_STATE = {
 }
 
 
+# Cache the compiled pipeline graph so it is only built once per process.
+# build_graph() compiles the StateGraph which is expensive — caching avoids
+# rebuilding it on every agent call within the same process.
 @lru_cache(maxsize=1)
 def _get_pipeline():
     return build_graph()
@@ -52,28 +63,24 @@ def taskplanner_pipeline(input_text: str) -> Dict:
 
 
 # ---------------------------------------------------------------------------
-# Agent state — separate from pipeline AgentState
+# Agent state
 # ---------------------------------------------------------------------------
 
 class AgentSessionState(TypedDict):
-    input_text: str                     # current raw input
-    plan: Dict[str, Any]               # routing plan from LLM call
-    pipeline_output: Dict[str, Any]    # final_output from pipeline
-    tool_results: List[Dict[str, Any]] # results from all tool calls
-    output: str                         # session summary (also used as history for next run)
+    input_text: str                      # current raw input
+    messages: List                       # ChatOpenAI message history for ReAct loop
+    plan: Dict[str, Any]                 # latest routing plan from LLM
+    pipeline_output: Dict[str, Any]      # final_output from pipeline
+    tool_results: List[Dict[str, Any]]   # results from the current execute cycle
+    output: str                          # session summary (loaded as history on next run)
+    iteration: int                       # ReAct loop counter
 
 
 # ---------------------------------------------------------------------------
-# Routing prompt
+# Prompts
 # ---------------------------------------------------------------------------
 
-_ROUTING_PROMPT = """You are a task management agent. Analyze the input and return a JSON routing plan.
-
-Previous session summary (use as context for routing decisions):
-{history}
-
-Current input:
-{input_text}
+_SYSTEM_PROMPT = """You are a task management agent. You classify input and decide which tools to call.
 
 Classification rules:
 - "task_planning": meeting transcript, SOW, email, or any text containing actionable tasks
@@ -84,43 +91,79 @@ Tool routing rules:
 - Add search_tasks after pipeline to verify the tasks were stored correctly
 - Add sync_task_to_jira if unresolved_events are likely (complex transcripts with status updates)
 - Add check_owner_availability if input mentions owners and deadlines
+- Add generate_report if the user explicitly requests a report
 - For junk: return empty tool_calls list
 
 Available tools:
-  taskplanner_pipeline  — run the AI planning pipeline on the input
-  search_tasks          — query active tasks from Postgres
-  get_task_by_id        — fetch a single task by UUID
-  create_task           — insert a task the pipeline missed
-  update_task_status    — update a field on an existing task
-  sync_task_to_jira     — push tasks to Jira (stub)
-  check_owner_availability — check calendar for owner (stub)
-  generate_report       — produce a task report (stub)
+  taskplanner_pipeline       — run the AI planning pipeline on the input
+  search_tasks               — query active tasks from Postgres
+  get_task_by_id             — fetch a single task by UUID
+  create_task                — insert a task the pipeline missed
+  update_task_status         — update a field on an existing task
+  sync_task_to_jira          — push tasks to Jira (stub)
+  check_owner_availability   — check calendar for owner (stub)
+  generate_report            — produce a task report (markdown, json, or excel)
 
 Respond with ONLY valid JSON — no markdown, no explanation:
-{{
+{
   "intent": "task_planning",
   "reasoning": "<one sentence>",
   "tool_calls": [
-    {{"tool": "taskplanner_pipeline", "args": {{"input_text": "<full input text here>"}}}},
-    {{"tool": "search_tasks", "args": {{}}}}
+    {"tool": "taskplanner_pipeline", "args": {"input_text": "<full input text here>"}},
+    {"tool": "search_tasks", "args": {}}
   ]
-}}"""
+}"""
 
 
-def _build_routing_prompt(input_text: str, history: str) -> str:
-    return _ROUTING_PROMPT.format(
-        input_text=input_text,
-        history=history if history else "No previous sessions.",
+def _build_initial_human_message(input_text: str, history: str) -> str:
+    # Combine previous session summary with current input into the first human message.
+    # History comes from the Postgres checkpointer — it gives the LLM context
+    # about what was processed in earlier runs on the same thread_id.
+    return (
+        f"Previous session summary (use as context):\n{history or 'No previous sessions.'}"
+        f"\n\nCurrent input:\n{input_text}"
     )
 
 
+def _build_observe_message(tool_results: List[Dict]) -> str:
+    # Format tool results into a human-readable observation that is appended to
+    # the message history before the next plan_node call.
+    # Truncates long results to 200 chars to avoid bloating the context window.
+    lines = ["Tool results from the actions you just took:"]
+    for r in tool_results:
+        name = r.get("tool", "unknown")
+        if "error" in r:
+            lines.append(f"- {name}: ERROR — {r['error']}")
+        else:
+            result = r.get("result", {})
+            if isinstance(result, dict):
+                # Summarise pipeline output by task count if available
+                summary = (
+                    f"{result.get('tasks_count', '?')} tasks stored"
+                    if "tasks_count" in result
+                    else json.dumps(result, default=str)[:200]
+                )
+            else:
+                summary = str(result)[:200]
+            lines.append(f"- {name}: {summary}")
+
+    # Instruct the LLM to decide what to do next, or return empty tool_calls to end the loop
+    lines.append(
+        "\nGiven these results, decide your next actions. "
+        "If the task is complete, return empty tool_calls []. "
+        "Respond with ONLY valid JSON in the same format as before."
+    )
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
-# MCP tool execution (async — runs in its own event loop)
+# MCP tool execution (async)
 # ---------------------------------------------------------------------------
 
 async def _run_mcp_tools(tool_calls: List[Dict]) -> List[Dict]:
     from langchain_mcp_adapters.client import MultiServerMCPClient
 
+    # taskplanner_pipeline is executed synchronously in execute_node — skip it here
     mcp_calls = [c for c in tool_calls if c.get("tool") != "taskplanner_pipeline"]
     if not mcp_calls:
         return []
@@ -129,6 +172,9 @@ async def _run_mcp_tools(tool_calls: List[Dict]) -> List[Dict]:
     results = []
 
     try:
+        # Connect to the MCP server via SSE transport.
+        # MultiServerMCPClient is NOT used as an async context manager in langchain-mcp-adapters 0.2.2+
+        # (async-with support was removed) — instantiate directly and call get_tools() instead.
         client = MultiServerMCPClient({
             "task-planner": {
                 "url": f"{mcp_url}/sse",
@@ -168,20 +214,44 @@ async def _run_mcp_tools(tool_calls: List[Dict]) -> List[Dict]:
 # ---------------------------------------------------------------------------
 
 def plan_node(state: AgentSessionState) -> AgentSessionState:
+    # plan_node is the LLM decision point for each ReAct iteration.
+    # On iteration 1: builds messages from scratch (system prompt + input + history).
+    # On iteration 2+: messages already contain previous AI response + observation from observe_node,
+    # so the LLM sees the full conversation history and can make an informed next decision.
+    iteration = state.get("iteration", 0) + 1
     logger.info("=" * 60)
-    logger.info("Agent plan_node: making routing LLM call")
+    logger.info(f"Agent plan_node: iteration {iteration}")
 
-    # state["output"] carries the previous session summary loaded by run_agent()
-    prompt = _build_routing_prompt(state["input_text"], state.get("output", ""))
+    messages = state.get("messages", [])
+
+    if not messages:
+        # First iteration — seed the conversation with system role + combined input/history message
+        messages = [
+            SystemMessage(content=_SYSTEM_PROMPT),
+            HumanMessage(content=_build_initial_human_message(
+                state["input_text"], state.get("output", "")
+            )),
+        ]
+
+    # temperature=0 for deterministic routing decisions
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     try:
-        plan = call_llm_json(prompt)
+        response = llm.invoke(messages)
+        plan = json.loads(response.content)
+        # Append the AI response to history so observe_node's message is placed after it
+        messages.append(AIMessage(content=response.content))
     except Exception as e:
-        logger.error(f"Routing LLM call failed: {e}")
+        logger.error(f"plan_node LLM call failed: {e}")
+        # Fallback to junk so the router exits cleanly rather than crashing
         plan = {"intent": "junk", "reasoning": f"LLM error: {e}", "tool_calls": []}
+        messages.append(AIMessage(content=json.dumps(plan)))
 
-    logger.info(f"Plan — intent={plan.get('intent')} | {plan.get('reasoning', '')}")
+    logger.info(f"Plan — intent={plan.get('intent')} | tools={[c.get('tool') for c in plan.get('tool_calls', [])]} | {plan.get('reasoning', '')}")
+
+    state["messages"] = messages
     state["plan"] = plan
+    state["iteration"] = iteration
     return state
 
 
@@ -198,10 +268,10 @@ def execute_node(state: AgentSessionState) -> AgentSessionState:
         state["tool_results"] = []
         return state
 
-    pipeline_output = {}
+    pipeline_output = state.get("pipeline_output", {})
     tool_results = []
 
-    # Run taskplanner_pipeline synchronously (always first)
+    # Run taskplanner_pipeline synchronously (always first, only on first iteration)
     pipeline_call = next((c for c in tool_calls if c.get("tool") == "taskplanner_pipeline"), None)
     if pipeline_call:
         input_text = pipeline_call.get("args", {}).get("input_text", state["input_text"])
@@ -220,9 +290,30 @@ def execute_node(state: AgentSessionState) -> AgentSessionState:
 
     state["pipeline_output"] = pipeline_output
     state["tool_results"] = tool_results
-    state["output"] = _build_summary(pipeline_output, tool_results)
+    return state
 
-    logger.info(f"Session summary: {state['output']}")
+
+def observe_node(state: AgentSessionState) -> AgentSessionState:
+    logger.info(f"Agent observe_node: processing {len(state.get('tool_results', []))} tool result(s)")
+
+    tool_results = state.get("tool_results", [])
+    messages = state.get("messages", [])
+
+    if tool_results:
+        observation = _build_observe_message(tool_results)
+        messages.append(HumanMessage(content=observation))
+        logger.info(f"Observation appended to message history (iteration {state.get('iteration', '?')})")
+
+    # Build running session summary from all tool results so far
+    all_results = state.get("tool_results", [])
+    pipeline_output = state.get("pipeline_output", {})
+    state["output"] = _build_summary(pipeline_output, all_results)
+
+    state["messages"] = messages
+    # Clear tool_results after converting them to an observation message.
+    # This prevents stale results from the current cycle from being re-processed
+    # if observe_node is called again in a later iteration.
+    state["tool_results"] = []
     return state
 
 
@@ -249,6 +340,28 @@ def _build_summary(pipeline_output: Dict, tool_results: List[Dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Routing
+# ---------------------------------------------------------------------------
+
+def plan_router(state: AgentSessionState) -> str:
+    plan = state.get("plan", {})
+    intent = plan.get("intent", "junk")
+    tool_calls = plan.get("tool_calls", [])
+    iteration = state.get("iteration", 0)
+
+    if intent == "junk":
+        return "end"
+    if not tool_calls:
+        logger.info("plan_router: no more tool calls — ending loop")
+        return "end"
+    if iteration >= MAX_REACT_ITERATIONS:
+        logger.info(f"plan_router: hit max ReAct iterations ({MAX_REACT_ITERATIONS}) — ending loop")
+        return "end"
+
+    return "execute"
+
+
+# ---------------------------------------------------------------------------
 # Graph construction
 # ---------------------------------------------------------------------------
 
@@ -264,9 +377,11 @@ def _build_agent_graph() -> StateGraph:
     graph = StateGraph(AgentSessionState)
     graph.add_node("plan", plan_node)
     graph.add_node("execute", execute_node)
+    graph.add_node("observe", observe_node)
     graph.set_entry_point("plan")
-    graph.add_edge("plan", "execute")
-    graph.add_edge("execute", END)
+    graph.add_conditional_edges("plan", plan_router, {"execute": "execute", "end": END})
+    graph.add_edge("execute", "observe")
+    graph.add_edge("observe", "plan")
     return graph
 
 
@@ -277,13 +392,18 @@ def _build_agent_graph() -> StateGraph:
 def run_agent(input_text: str, thread_id: str = "default") -> Dict:
     from langgraph.checkpoint.postgres import PostgresSaver
 
+    # thread_id scopes the agent's memory — each unique thread_id gets its own
+    # independent conversation history stored in the Postgres checkpointer.
     config = {"configurable": {"thread_id": thread_id}}
     db_url = _get_db_url()
 
     with PostgresSaver.from_conn_string(db_url) as checkpointer:
-        checkpointer.setup()  # creates checkpoints table on first run — no-op after that
+        # setup() creates the checkpoints table on first run — no-op on subsequent runs
+        checkpointer.setup()
 
-        # Load previous session summary to use as history context in plan_node
+        # Load the output field from the most recent checkpoint for this thread.
+        # This gives plan_node the context of what was processed in the last session
+        # so the LLM can avoid redundant actions across runs.
         previous_output = ""
         checkpoint = checkpointer.get(config)
         if checkpoint:
@@ -291,12 +411,17 @@ def run_agent(input_text: str, thread_id: str = "default") -> Dict:
             if previous_output:
                 logger.info(f"Loaded previous session summary: {previous_output[:100]}")
 
+        # messages=[] always starts fresh — the Postgres checkpointer persists the full
+        # graph state, but we intentionally reset messages each run so the ReAct loop
+        # starts clean. Cross-run context is passed through the output/history field instead.
         initial_state: AgentSessionState = {
             "input_text": input_text,
+            "messages": [],
             "plan": {},
             "pipeline_output": {},
             "tool_results": [],
-            "output": previous_output,  # plan_node reads this as history
+            "output": previous_output,
+            "iteration": 0,
         }
 
         agent = _build_agent_graph().compile(checkpointer=checkpointer)

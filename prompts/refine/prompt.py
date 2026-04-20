@@ -1,3 +1,7 @@
+# Prompt for the refine node — instructs the LLM to decide which pipeline node
+# should be revisited based on validation feedback (extract / decompose / prioritize / validate).
+# Includes iteration context so the LLM avoids routing to the same target twice
+# when feedback hasn't changed, and forces acceptance on the final iteration.
 def get_refine_prompt(validation_feedback: str, validation_history: list, current_iteration: int, max_iterations: int) -> str:
     return f"""
 You are a refine-routing agent for an AI task planning system.

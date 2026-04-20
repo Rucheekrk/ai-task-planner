@@ -6,7 +6,7 @@ Context file for Claude Code. Read this at the start of every session to get ful
 
 ## Project Overview
 
-An AI-powered task management system. A LangGraph ReAct agent sits above a deterministic planning pipeline. The agent receives raw input (meeting transcripts, SOWs), classifies intent, calls the pipeline when appropriate, and routes results to integration tools via a custom MCP server. Built with LangGraph, OpenAI GPT-4o-mini, PostgreSQL + pgvector, and a FastMCP HTTP/SSE server.
+An AI-powered task management system. A LangGraph ReAct agent sits above a deterministic planning pipeline. The agent receives raw input (meeting transcripts, SOWs), classifies intent, calls the pipeline when appropriate, observes tool results, and decides follow-up actions via a custom MCP server. The agent runs a custom ReAct loop (plan → execute → observe → plan → ... → END, max 3 iterations) built manually using ChatOpenAI message history — not `create_react_agent`. Built with LangGraph, OpenAI GPT-4o-mini, PostgreSQL + pgvector, and a FastMCP HTTP/SSE server.
 
 **GitHub:** `https://github.com/Rucheekrk/ai-task-planner`  
 **Branch:** `main`  
@@ -235,21 +235,26 @@ The agent is the system entry point. It sits above the pipeline and owns all ext
 stdin input
     ↓
 Agent (apps/agent.py)
-    ├── Reads conversation history from Postgres checkpointer (thread_id scoped)
+    ├── Reads previous session summary from Postgres checkpointer (thread_id scoped)
     │
-    ├── LLM Call #1 — Intent + Tool Routing Plan
-    │       Input:  raw text + history
-    │       Output: { intent: "task_planning"|"junk", tool_calls: [{tool, args}, ...] }
+    ├── ReAct loop (max 3 iterations):
+    │       plan_node   — ChatOpenAI call with accumulated message history
+    │                     Input:  system prompt + human message (input + history)
+    │                     Output: { intent, reasoning, tool_calls: [{tool, args}, ...] }
+    │                     On subsequent iterations: also sees observation from previous cycle
+    │          │
+    │          ├── plan_router: intent=junk or tool_calls=[] → END
+    │          │                else → execute
+    │          │
+    │       execute_node — runs tool_calls
+    │                     taskplanner_pipeline runs synchronously (always first)
+    │                     MCP tools run asynchronously via langchain-mcp-adapters
+    │          │
+    │       observe_node — formats tool_results into a HumanMessage observation
+    │                     appends to messages list, clears tool_results
+    │                     loops back to plan_node
     │
-    ├── if intent = "junk" → return early, no pipeline call
-    │
-    └── if intent = "task_planning":
-            Execute tool_calls in order:
-            1. taskplanner_pipeline(input_text)          ← always first for task inputs
-            2. search_tasks / get_task_by_id             ← verify Postgres storage
-            3. sync_task_to_jira(task_id, ...)           ← conditional on plan (stub)
-            4. check_owner_availability(owner, deadline) ← conditional on plan (stub)
-            5. generate_report(format)                   ← conditional on plan (stub)
+    └── END — final state written to Postgres checkpointer
 ```
 
 **Agent memory:** Postgres checkpointer (`langgraph-checkpoint-postgres`), keyed by `thread_id`. Persists across process runs — agent accumulates context over multiple sessions.
@@ -264,7 +269,7 @@ Agent (apps/agent.py)
 **MCP Server (`mcp_server/`)** — HTTP/SSE, port 8001
 - Runs independently via `python3 -m mcp_server.server`
 - Agent connects via `langchain-mcp-adapters` SSE client using `MCP_SERVER_URL`
-- Tools: `search_tasks`, `get_task_by_id`, `create_task`, `update_task_status` [Postgres, full], `sync_task_to_jira` [stub], `check_owner_availability` [stub], `generate_report` [stub]
+- Tools: `search_tasks`, `get_task_by_id`, `create_task`, `update_task_status` [Postgres, full], `sync_task_to_jira` [stub], `check_owner_availability` [stub], `generate_report` [full — markdown/json/excel]
 
 **State ownership:**
 
@@ -274,7 +279,7 @@ Agent (apps/agent.py)
 | Pipeline | Extracted tasks, matched events, validation | In-process AgentState only |
 | MCP tools | Live task/event records | Postgres tasks/task_events tables |
 
-**Extensibility:** Agent currently makes 1 LLM call (plan-then-execute). Full ReAct loop (think → call → observe → think again) is the next step — just lift the iteration cap.
+**Current state:** Custom ReAct loop — `plan → execute → observe → plan → ... → END` (max 3 iterations). Built manually using ChatOpenAI with accumulated message history. Agent observes tool results before deciding next actions. Not using `create_react_agent` (black box); the graph nodes are explicit and fully inspectable.
 
 ---
 
@@ -302,14 +307,14 @@ Agent (apps/agent.py)
 
 ## Potential Next Steps
 
-1. **Agent + MCP server implementation** — implement `apps/agent.py`, `mcp_server/`, remove intent node, update `main.py` (in progress — architecture finalized 2026-04-18)
-2. **Full ReAct loop for agent** — currently one LLM call (plan-then-execute); extend to think→call→observe→think loop when integration tools return real data
-3. **Jira integration** — replace `sync_task_to_jira` stub with real Jira REST API calls (requires `JIRA_URL`, `JIRA_TOKEN`, `JIRA_PROJECT` env vars)
-4. **Calendar integration** — replace `check_owner_availability` stub with Google Calendar or Outlook API
-5. **Report generation** — implement `generate_report(format)` for json/excel/markdown output
-6. **FastAPI frontend** — expose agent as HTTP endpoint; MCP server already on HTTP/SSE so transport is compatible
-7. **Validation prompt tuning** — the quality validate prompt may still be too strict on some edge cases; `input-test-priority.txt` exists for targeted testing
-8. ~~**Multi-run deduplication**~~ — ✅ Done: `fetch_task_by_normalized_text()` guard in `store_tasks` prevents duplicate inserts across runs
+1. ~~**Agent + MCP server implementation**~~ — ✅ Done
+2. ~~**Full ReAct loop for agent**~~ — ✅ Done: custom `plan → execute → observe → plan` loop with ChatOpenAI message history
+3. ~~**Report generation**~~ — ✅ Done: `generate_report(format)` implemented for json/excel/markdown
+4. ~~**Multi-run deduplication**~~ — ✅ Done: `fetch_task_by_normalized_text()` guard in `store_tasks`
+5. **Jira integration** — replace `sync_task_to_jira` stub with real Jira REST API calls (requires `JIRA_URL`, `JIRA_TOKEN`, `JIRA_PROJECT` env vars)
+6. **Calendar integration** — replace `check_owner_availability` stub with Google Calendar or Outlook API
+7. **FastAPI frontend** — expose agent as HTTP endpoint; MCP server already on HTTP/SSE so transport is compatible
+8. **Validation prompt tuning** — the quality validate prompt may still be too strict on some edge cases; `input-test-priority.txt` exists for targeted testing
 
 ---
 

@@ -3,15 +3,14 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client
+# Single shared OpenAI client — reused across all pipeline LLM calls
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def call_llm(prompt: str) -> str:
-    # LLM Call: return raw text response
+    # Send a plain text prompt and return the raw text response
     response = client.responses.create(
         model="gpt-4o-mini",
         input=prompt,
@@ -20,7 +19,8 @@ def call_llm(prompt: str) -> str:
 
 
 def call_llm_json(prompt: str) -> dict:
-    # LLM Call: return parsed JSON response
+    # Send a prompt and parse the response as JSON.
+    # All pipeline nodes expect JSON output — the prompts enforce this.
     response = client.responses.create(
         model="gpt-4o-mini",
         input=prompt,
@@ -28,5 +28,5 @@ def call_llm_json(prompt: str) -> dict:
 
     raw_text = response.output_text.strip()
 
-    # Parse JSON safely
+    # Parse and return the JSON response from the model
     return json.loads(raw_text)

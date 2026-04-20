@@ -10,7 +10,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# ---------------------------------------------------------------------------
+# Connection
+# ---------------------------------------------------------------------------
+
 def _get_conn():
+    # Open a psycopg2 connection using env-configured credentials.
+    # pgvector registration is attempted but swallowed if the extension is not
+    # present — tools that don't use vector search still work in that case.
     conn = psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=os.getenv("DB_PORT", "5432"),
@@ -26,11 +33,57 @@ def _get_conn():
     return conn
 
 
+# ---------------------------------------------------------------------------
+# Internal helpers (not registered as MCP tools)
+# ---------------------------------------------------------------------------
+
+def _fetch_tasks_filtered(
+    filter_owner: Optional[str] = None,
+    filter_priority: Optional[str] = None,
+    filter_status: Optional[str] = None,
+) -> list:
+    # Build a dynamic WHERE clause from whichever filters were provided.
+    # Returns a list of task dicts for use by other MCP tools (e.g. generate_report).
+    conditions = ["is_active = TRUE"]
+    params = []
+
+    if filter_owner:
+        conditions.append("owner ILIKE %s")
+        params.append(f"%{filter_owner}%")
+    if filter_priority:
+        conditions.append("LOWER(priority) = LOWER(%s)")
+        params.append(filter_priority)
+    if filter_status:
+        conditions.append("LOWER(status) = LOWER(%s)")
+        params.append(filter_status)
+
+    sql = f"""
+        SELECT task_id, task_text, owner, status, deadline, priority, subtasks, created_at, updated_at
+        FROM tasks
+        WHERE {' AND '.join(conditions)}
+        ORDER BY
+            CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+            updated_at DESC
+    """
+    conn = _get_conn()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(sql, params)
+        rows = cur.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# MCP tools — registered in server.py via mcp.tool()
+# All functions return JSON strings as required by the MCP protocol.
+# ---------------------------------------------------------------------------
+
 def search_tasks(query: Optional[str] = None, owner: Optional[str] = None, status: Optional[str] = None) -> str:
     """Search active tasks in Postgres. All filters are optional — omit to return recent tasks."""
     conditions = ["is_active = TRUE"]
     params = []
 
+    # Build dynamic filters — each is optional and stacked with AND
     if query:
         conditions.append("(task_text ILIKE %s OR normalized_task_text ILIKE %s)")
         params.extend([f"%{query}%", f"%{query}%"])
@@ -74,6 +127,7 @@ def get_task_by_id(task_id: str) -> str:
             """, (task_id,))
             row = cur.fetchone()
         conn.close()
+
         if row:
             return json.dumps(dict(row), default=str)
         return json.dumps({"error": f"No task found with id {task_id}"})
@@ -83,10 +137,12 @@ def get_task_by_id(task_id: str) -> str:
 
 def create_task(task_text: str, owner: Optional[str] = None, deadline: Optional[str] = None, priority: str = "medium") -> str:
     """Insert a new task into Postgres. Use only for tasks the pipeline missed — pipeline handles bulk creation."""
+    # Validate priority — default to medium if caller passes an unrecognised value
     allowed_priorities = {"high", "medium", "low"}
     if priority not in allowed_priorities:
         priority = "medium"
 
+    # Normalize task text the same way the pipeline does — keeps dedup guard effective
     normalized = re.sub(r"[^\w\s]", "", task_text.lower().strip())
 
     try:
@@ -107,6 +163,7 @@ def create_task(task_text: str, owner: Optional[str] = None, deadline: Optional[
 
 def update_task_status(task_id: str, field: str, value: str) -> str:
     """Update a single field on an existing task. Allowed fields: status, priority, owner, deadline, blocker."""
+    # Validate field name against an allowlist to prevent SQL injection
     allowed_fields = {"status", "priority", "owner", "deadline", "blocker"}
     if field not in allowed_fields:
         return json.dumps({
@@ -116,6 +173,7 @@ def update_task_status(task_id: str, field: str, value: str) -> str:
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
+            # Safe to interpolate field here — validated against allowlist above
             cur.execute(
                 f"UPDATE tasks SET {field} = %s, updated_at = NOW() WHERE task_id = %s",
                 (value, task_id)
@@ -123,6 +181,7 @@ def update_task_status(task_id: str, field: str, value: str) -> str:
             updated = cur.rowcount
         conn.commit()
         conn.close()
+
         if updated == 0:
             return json.dumps({"error": f"No task found with id {task_id}"})
         return json.dumps({"task_id": task_id, "field": field, "value": value, "status": "updated"})

@@ -1,3 +1,7 @@
+# Prompt for the extract node — instructs the LLM to identify actionable tasks
+# from raw input (transcript, email, SOW, etc.) and return them as a JSON list.
+# The prompt is conservative: it only extracts tasks explicitly stated in the input
+# and returns an empty list when no actionable work is present.
 def get_extract_prompt(raw_input: str) -> str:
     return f"""
 You are a task extraction agent for an AI task planning system.
