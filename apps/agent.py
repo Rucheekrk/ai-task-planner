@@ -100,8 +100,8 @@ Available tools:
   get_task_by_id             — fetch a single task by UUID
   create_task                — insert a task the pipeline missed
   update_task_status         — update a field on an existing task
-  sync_task_to_jira          — push tasks to Jira (stub)
-  check_owner_availability   — check calendar for owner (stub)
+  sync_task_to_jira          — push tasks to Jira
+  check_owner_availability   — check Google Calendar availability for owner
   generate_report            — produce a task report (markdown, json, or excel)
 
 Respond with ONLY valid JSON — no markdown, no explanation:

@@ -269,7 +269,7 @@ Agent (apps/agent.py)
 **MCP Server (`mcp_server/`)** — HTTP/SSE, port 8001
 - Runs independently via `python3 -m mcp_server.server`
 - Agent connects via `langchain-mcp-adapters` SSE client using `MCP_SERVER_URL`
-- Tools: `search_tasks`, `get_task_by_id`, `create_task`, `update_task_status` [Postgres, full], `sync_task_to_jira` [stub], `check_owner_availability` [stub], `generate_report` [full — markdown/json/excel]
+- Tools: `search_tasks`, `get_task_by_id`, `create_task`, `update_task_status` [Postgres], `sync_task_to_jira` [Jira REST API], `check_owner_availability` [Google Calendar freebusy], `generate_report` [markdown/json/excel] — all degrade gracefully when credentials absent
 
 **State ownership:**
 
@@ -311,8 +311,8 @@ Agent (apps/agent.py)
 2. ~~**Full ReAct loop for agent**~~ — ✅ Done: custom `plan → execute → observe → plan` loop with ChatOpenAI message history
 3. ~~**Report generation**~~ — ✅ Done: `generate_report(format)` implemented for json/excel/markdown
 4. ~~**Multi-run deduplication**~~ — ✅ Done: `fetch_task_by_normalized_text()` guard in `store_tasks`
-5. **Jira integration** — replace `sync_task_to_jira` stub with real Jira REST API calls (requires `JIRA_URL`, `JIRA_TOKEN`, `JIRA_PROJECT` env vars)
-6. **Calendar integration** — replace `check_owner_availability` stub with Google Calendar or Outlook API
+5. ~~**Jira integration**~~ — ✅ Done: POST to `/rest/api/3/issue` with Basic auth; degrades to `not_configured` when env vars absent. Requires `JIRA_URL`, `JIRA_API_TOKEN`, `JIRA_USER_EMAIL`, `JIRA_PROJECT_KEY`
+6. ~~**Calendar integration**~~ — ✅ Done: Google Calendar freebusy API via service account; degrades to `not_configured` when env vars absent. Requires `GOOGLE_SERVICE_ACCOUNT_FILE`, `GOOGLE_CALENDAR_DOMAIN`
 7. **FastAPI frontend** — expose agent as HTTP endpoint; MCP server already on HTTP/SSE so transport is compatible
 8. **Validation prompt tuning** — the quality validate prompt may still be too strict on some edge cases; `input-test-priority.txt` exists for targeted testing
 

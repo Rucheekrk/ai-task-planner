@@ -75,3 +75,5 @@ langchain-openai
 langgraph-checkpoint-postgres
 psycopg[binary]
 openpyxl
+google-auth
+google-api-python-client
