@@ -27,5 +27,6 @@ if __name__ == "__main__":
     logger.info(f"Session summary: {result.get('output', '')}")
 
     print()
-    # Pretty-print full agent result to stdout for inspection
+    print("=== JSON_OUTPUT_BEGIN ===")
     print(json.dumps(result, indent=2, default=str))
+    print("=== JSON_OUTPUT_END ===")

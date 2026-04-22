@@ -333,3 +333,7 @@ Agent (apps/agent.py)
 ## Future Enhancements (deferred — not core goals)
 
 - **Relative deadline resolution** — deadlines like "tomorrow EOD" or "next Tuesday" are stored as strings; converting them to absolute ISO dates (`YYYY-MM-DD`) at normalize time would make them queryable and sortable. `python-dateutil` is already in requirements. Approach: post-process the `deadline` field in `normalize.py` after LLM output using a `resolve_deadline(text, today)` utility that handles common patterns (today, tomorrow, next \<weekday\>, EOW, EOM) with a `dateutil.parser` fuzzy-parse fallback.
+
+- **Deadline-aware agent prioritization** — agent reads deadlines from `pipeline_output.tasks` and reorders follow-up tool calls accordingly (e.g. call `check_owner_availability` for the owner with the nearest deadline first). Currently deadlines are stored but ignored at the agent level.
+
+- **Multi-run deduplication awareness** — agent notices "these tasks already exist from a previous session" (via `search_tasks` result) and routes to `update_task_status` instead of silently re-creating. Currently dedup is handled at the DB layer but the agent doesn't reason about it.

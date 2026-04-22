@@ -45,6 +45,7 @@ class RunResponse(BaseModel):
     intent: str                          # task_planning | junk
     tasks_count: int                     # number of tasks stored
     tasks: List[Dict[str, Any]]          # task list with priority and subtasks
+    event_signals: List[Dict[str, Any]]  # matched non-new_task events (blocker, deadline_change, etc.)
     unresolved_events: List[Dict[str, Any]]  # update events that failed matching
     validation_outcome: ValidationOutcome
     output: str                          # human-readable session summary
@@ -84,6 +85,7 @@ async def run(request: RunRequest):
         intent=result.get("plan", {}).get("intent", "unknown"),
         tasks_count=pipeline_output.get("tasks_count", 0),
         tasks=pipeline_output.get("tasks", []),
+        event_signals=pipeline_output.get("event_signals", []),
         unresolved_events=pipeline_output.get("unresolved_events", []),
         validation_outcome=ValidationOutcome(
             passed=validation_raw.get("passed", False),

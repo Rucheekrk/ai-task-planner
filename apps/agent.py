@@ -89,19 +89,30 @@ Classification rules:
 Tool routing rules:
 - For task_planning: always include taskplanner_pipeline first with the full input text
 - Add search_tasks after pipeline to verify the tasks were stored correctly
-- Add sync_task_to_jira if unresolved_events are likely (complex transcripts with status updates)
-- Add check_owner_availability if input mentions owners and deadlines
+- Add sync_task_to_jira if unresolved_events are likely (complex transcripts with status updates) — only include if you have an actual task_id and task_text to pass
+- Add check_owner_availability if input mentions a specific owner and deadline — call it once per owner with a single owner string, NOT a list
 - Add generate_report if the user explicitly requests a report
+- If observation contains a LOW CONFIDENCE SIGNAL, re-call taskplanner_pipeline with the original input prefixed by "Note: previous extraction was too conservative — extract all plausible tasks more liberally.\n\n"
+- If observation contains a BLOCKER SIGNAL, call sync_task_to_jira with the task_id and task_text from the signal — the task is blocked and needs escalation
+- If observation contains a DEADLINE CHANGE SIGNAL, call check_owner_availability with the owner and new deadline from the signal — verify the owner is available for the updated deadline
 - For junk: return empty tool_calls list
+- Do NOT use create_task for tasks already created by taskplanner_pipeline
+
+Tool argument constraints:
+- check_owner_availability requires: owner (single string, e.g. "Alex"), deadline (optional string)
+  WRONG: {{"owner": ["Alex", "Priya"]}}
+  RIGHT: one call per owner — {{"owner": "Alex", "deadline": "April 20th"}}
+- sync_task_to_jira requires: task_id (UUID string), task_text (string) — never call with empty args
+- create_task is only for tasks the pipeline missed — do not re-create tasks already in pipeline_output
 
 Available tools:
   taskplanner_pipeline       — run the AI planning pipeline on the input
   search_tasks               — query active tasks from Postgres
   get_task_by_id             — fetch a single task by UUID
-  create_task                — insert a task the pipeline missed
+  create_task                — insert a task the pipeline missed (not for pipeline-created tasks)
   update_task_status         — update a field on an existing task
-  sync_task_to_jira          — push tasks to Jira
-  check_owner_availability   — check Google Calendar availability for owner
+  sync_task_to_jira          — push a task to Jira (requires task_id and task_text)
+  check_owner_availability   — check Google Calendar for a single owner (requires owner string)
   generate_report            — produce a task report (markdown, json, or excel)
 
 Respond with ONLY valid JSON — no markdown, no explanation:
@@ -125,6 +136,59 @@ def _build_initial_human_message(input_text: str, history: str) -> str:
     )
 
 
+def _analyse_pipeline_signals(result: dict) -> List[str]:
+    # Extract actionable signals from pipeline output to surface in the observation.
+    # Each signal is a plain-English sentence the LLM can act on in the next plan cycle.
+    signals = []
+
+    tasks = result.get("tasks", [])
+    if tasks:
+        low_confidence = [t for t in tasks if t.get("confidence") == "low"]
+        if len(low_confidence) >= max(1, len(tasks) // 2):
+            signals.append(
+                f"LOW CONFIDENCE SIGNAL: {len(low_confidence)} of {len(tasks)} tasks returned low confidence — "
+                "extraction may have been too conservative."
+            )
+
+    # Surface blocker and deadline_change events so the agent can decide follow-up actions
+    event_signals = result.get("event_signals", [])
+    blocker_events = [e for e in event_signals if e.get("event_type") == "blocker"]
+    deadline_events = [e for e in event_signals if e.get("event_type") == "deadline_change"]
+
+    for e in blocker_events:
+        task_id = e.get("matched_task_id", "")
+        task_text = e.get("task_text", "")
+        signals.append(
+            f"BLOCKER SIGNAL: task '{task_text}' (task_id={task_id}) is blocked — "
+            "consider syncing to Jira so it can be escalated."
+        )
+
+    for e in deadline_events:
+        owner = e.get("owner", "")
+        deadline = e.get("deadline", "")
+        task_text = e.get("task_text", "")
+        if owner:
+            signals.append(
+                f"DEADLINE CHANGE SIGNAL: deadline for '{task_text}' changed to {deadline} (owner={owner}) — "
+                "consider checking owner availability."
+            )
+
+    unresolved = result.get("unresolved_events", [])
+    if unresolved:
+        signals.append(
+            f"UNRESOLVED EVENTS: {len(unresolved)} update event(s) could not be matched to existing tasks — "
+            "consider syncing to Jira for manual review."
+        )
+
+    validation = result.get("validation_outcome", {})
+    if validation.get("hit_max_iterations"):
+        signals.append(
+            "VALIDATION WARNING: pipeline hit max iterations without passing — plan quality may be lower than expected."
+        )
+
+    return signals
+
+
 def _build_observe_message(tool_results: List[Dict]) -> str:
     # Format tool results into a human-readable observation that is appended to
     # the message history before the next plan_node call.
@@ -143,6 +207,10 @@ def _build_observe_message(tool_results: List[Dict]) -> str:
                     if "tasks_count" in result
                     else json.dumps(result, default=str)[:200]
                 )
+                # Surface actionable signals from pipeline output
+                if name == "taskplanner_pipeline":
+                    for signal in _analyse_pipeline_signals(result):
+                        lines.append(f"  ⚠ {signal}")
             else:
                 summary = str(result)[:200]
             lines.append(f"- {name}: {summary}")

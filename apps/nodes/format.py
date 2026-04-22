@@ -60,6 +60,14 @@ def task_format_node(state: AgentState) -> AgentState:
         for event in state.get("unresolved_events", [])
     ]
 
+    # Expose non-new_task matched events so the agent can react to event types (blocker, deadline_change, etc.)
+    # Strip source_input — full transcript is not needed at the agent level
+    event_signals = [
+        {k: v for k, v in event.items() if k not in ("source_input",)}
+        for event in state.get("matched_events", [])
+        if event.get("event_type") not in ("new_task", None)
+    ]
+
     # Summarise validation outcome for the agent
     current_iteration = state.get("current_iteration", 0)
     max_iterations = state.get("max_iterations", 5)
@@ -74,6 +82,7 @@ def task_format_node(state: AgentState) -> AgentState:
     state["final_output"] = {
         "tasks_count": len(formatted_tasks),
         "tasks": formatted_tasks,
+        "event_signals": event_signals,
         "unresolved_events": unresolved_summary,
         "validation_outcome": validation_outcome,
         "status": "completed",
