@@ -37,24 +37,41 @@ A task that is a prerequisite or dependency for another important task should us
 - Tasks that are configuration, integration, or optimization after setup should be lower priority
 
 ### Layer-Based Priority Guidance
-- High → foundational setup tasks that multiple other tasks depend on
-- Medium → core execution tasks that are important but not foundational blockers
-- Low → post-setup tasks such as configuration, integration, tuning, or optimization
+- High → foundational setup tasks that multiple other tasks depend on, OR tasks that must be completed before a final QA/testing step
+- Medium → tasks that are important but do not block a final testing or verification step
+- Low → final verification steps (QA testing, UAT, end-to-end testing, sign-off, stakeholder review) — these run last by design
 
-Examples:
+### Final Step Rule (Critical)
+- Tasks that are explicitly the final verification step before go-live (QA testing, UAT, end-to-end testing, acceptance testing, stakeholder sign-off) must ALWAYS be low priority
+- These tasks run after all other work is done — being last does not make them high priority
+- Any task that must be completed BEFORE the final QA/testing step should be high priority, because it blocks the final step
+
+### Infrastructure Rule
+- CI/CD pipelines, build systems, and deployment infrastructure are always high priority
+- They are foundational — all development, testing, and integration work depends on them being in place
+
+### Pre-QA Tasks Rule
+- If a task must be completed before QA/end-to-end testing can begin, it should be high priority
+- Examples: feature implementation, integration tasks, unit/integration tests — all must be done before QA runs
+
+Example — Mobile App Launch:
 Input:
 [
-  {{"task": "update resume"}},
-  {{"task": "apply to jobs"}}
+  {{"task": "Set up CI/CD pipeline"}},
+  {{"task": "Write unit tests for authentication module"}},
+  {{"task": "Integrate payment gateway"}},
+  {{"task": "Conduct end-to-end QA testing on staging"}}
 ]
 
 Output:
 [
-  {{"task": "update resume", "priority": "high"}},
-  {{"task": "apply to jobs", "priority": "medium"}}
+  {{"task": "Set up CI/CD pipeline", "priority": "high"}},
+  {{"task": "Write unit tests for authentication module", "priority": "high"}},
+  {{"task": "Integrate payment gateway", "priority": "high"}},
+  {{"task": "Conduct end-to-end QA testing on staging", "priority": "low"}}
 ]
 
-Explanation: applying depends on having an updated resume
+Explanation: CI/CD is infrastructure. Auth tests and payment gateway must be done before QA can validate. QA is the final verification step — correctly low.
 
 ### Job Search Rule
 - "update resume" is usually foundational for "apply to jobs"

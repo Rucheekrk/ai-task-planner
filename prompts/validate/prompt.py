@@ -125,8 +125,9 @@ Your job is to evaluate whether the current prioritized task plan is good enough
 ### Priority and Dependency Rules
 - A PREREQUISITE task (one that must be completed FIRST so other tasks can proceed) should have equal or higher priority than the tasks that depend on it
 - A DEPENDENT task (one that runs AFTER others are done) is correctly low priority — it comes last by design
-- Final steps such as UAT, QA testing, end-to-end testing, sign-off, or stakeholder review are correctly low priority — do NOT flag these as priority errors
-- Only flag a priority issue if a clear prerequisite is ranked LOWER than a task that explicitly depends on it
+- Final steps such as UAT, QA testing, end-to-end testing, sign-off, or stakeholder review are correctly low priority — do NOT flag these as priority errors when they are low
+- If a final verification step (QA, UAT, end-to-end testing, sign-off) is marked medium or high, that IS a priority error — these must always be low
+- Tasks that must be completed BEFORE the final QA/testing step should be high priority — flag it if they are medium or low
 
 ### Decision Rules
 - Mark is_valid = true if the plan is reasonably clear, consistent, and usable — minor imperfections are fine
