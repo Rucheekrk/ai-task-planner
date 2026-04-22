@@ -23,6 +23,7 @@ LangGraph-Task-Agent/
 ├── docker-compose.yml             # PostgreSQL + pgvector container (port 5432)
 │
 ├── apps/
+│   ├── api.py                     # FastAPI app — POST /run, GET /tasks, GET /tasks/{id}, GET /health
 │   ├── agent.py                   # Top-level ReAct agent — intent classification, tool routing
 │   ├── state.py                   # AgentState TypedDict — shared state across pipeline nodes
 │   ├── graph.py                   # LangGraph pipeline graph — nodes, edges, routers (no intent node)
@@ -206,13 +207,24 @@ source venv/bin/activate
 # 2. Start PostgreSQL + pgvector
 docker-compose up -d
 
-# 3. Start MCP server (separate terminal)
+# 3. Start MCP server (separate terminal, port 8001)
 python3 -m mcp_server.server
 
-# 4. Run agent
+# 4a. Run agent via CLI
 python3 main.py < datasets/input-2.txt
 python3 main.py < datasets/input-sow-1.txt
+
+# 4b. Run agent via FastAPI (separate terminal, port 8000)
+uvicorn apps.api:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+**FastAPI endpoints:**
+- `GET  /health` — liveness check
+- `POST /run` — run the agent: `{ "input_text": "...", "thread_id": "default" }`
+- `GET  /tasks` — list active tasks (query params: `query`, `owner`, `status`)
+- `GET  /tasks/{task_id}` — fetch a single task by UUID
+
+Interactive docs available at `http://localhost:8000/docs` when the server is running.
 
 `.env` required fields:
 ```
@@ -313,7 +325,7 @@ Agent (apps/agent.py)
 4. ~~**Multi-run deduplication**~~ — ✅ Done: `fetch_task_by_normalized_text()` guard in `store_tasks`
 5. ~~**Jira integration**~~ — ✅ Done: POST to `/rest/api/3/issue` with Basic auth; degrades to `not_configured` when env vars absent. Requires `JIRA_URL`, `JIRA_API_TOKEN`, `JIRA_USER_EMAIL`, `JIRA_PROJECT_KEY`
 6. ~~**Calendar integration**~~ — ✅ Done: Google Calendar freebusy API via service account; degrades to `not_configured` when env vars absent. Requires `GOOGLE_SERVICE_ACCOUNT_FILE`, `GOOGLE_CALENDAR_DOMAIN`
-7. **FastAPI frontend** — expose agent as HTTP endpoint; MCP server already on HTTP/SSE so transport is compatible
+7. ~~**FastAPI frontend**~~ — ✅ Done: `apps/api.py` exposes `POST /run`, `GET /tasks`, `GET /tasks/{task_id}`, `GET /health`; run via `uvicorn apps.api:app --port 8000`
 8. **Validation prompt tuning** — the quality validate prompt may still be too strict on some edge cases; `input-test-priority.txt` exists for targeted testing
 
 ---
