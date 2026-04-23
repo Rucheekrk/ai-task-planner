@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from apps.agent import run_agent
 from apps.logger import get_logger
-from mcp_server.tools.postgres import get_task_by_id, search_tasks
+from mcp_server.tools.postgres import get_task_by_id, search_tasks, update_task_status
 
 load_dotenv()
 logger = get_logger("API")
@@ -124,5 +124,23 @@ def get_task(task_id: str):
 
     if "error" in data:
         raise HTTPException(status_code=404, detail=data["error"])
+
+    return data
+
+
+class TaskPatchRequest(BaseModel):
+    field: str   # status | priority | owner | deadline | blocker
+    value: str
+
+
+@app.patch("/tasks/{task_id}")
+def patch_task(task_id: str, body: TaskPatchRequest):
+    """Update a single field on an existing task."""
+    import json
+    raw = update_task_status(task_id=task_id, field=body.field, value=body.value)
+    data = json.loads(raw)
+
+    if "error" in data:
+        raise HTTPException(status_code=400, detail=data["error"])
 
     return data
