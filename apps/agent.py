@@ -92,7 +92,6 @@ Tool routing rules:
 - Add sync_task_to_jira if unresolved_events are likely (complex transcripts with status updates) — only include if you have an actual task_id and task_text to pass
 - Add check_owner_availability if input mentions a specific owner and deadline — call it once per owner with a single owner string, NOT a list
 - Add generate_report if the user explicitly requests a report
-- If observation contains a LOW CONFIDENCE SIGNAL, re-call taskplanner_pipeline with the original input prefixed by "Note: previous extraction was too conservative — extract all plausible tasks more liberally.\n\n"
 - If observation contains a BLOCKER SIGNAL, call sync_task_to_jira with the task_id and task_text from the signal — the task is blocked and needs escalation
 - If observation contains a DEADLINE CHANGE SIGNAL, call check_owner_availability with the owner and new deadline from the signal — verify the owner is available for the updated deadline
 - For junk: return empty tool_calls list
@@ -140,15 +139,6 @@ def _analyse_pipeline_signals(result: dict) -> List[str]:
     # Extract actionable signals from pipeline output to surface in the observation.
     # Each signal is a plain-English sentence the LLM can act on in the next plan cycle.
     signals = []
-
-    tasks = result.get("tasks", [])
-    if tasks:
-        low_confidence = [t for t in tasks if t.get("confidence") == "low"]
-        if len(low_confidence) >= max(1, len(tasks) // 2):
-            signals.append(
-                f"LOW CONFIDENCE SIGNAL: {len(low_confidence)} of {len(tasks)} tasks returned low confidence — "
-                "extraction may have been too conservative."
-            )
 
     # Surface blocker and deadline_change events so the agent can decide follow-up actions
     event_signals = result.get("event_signals", [])

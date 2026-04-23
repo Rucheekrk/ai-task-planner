@@ -6,6 +6,7 @@ from apps.db.db import (
     update_task_field,
     update_task_subtasks,
     fetch_task_by_normalized_text,
+    fetch_semantic_task_match,
     log_unresolved_event,
 )
 import re
@@ -102,6 +103,15 @@ def normalize_text(text: str) -> str:
     return text
 
 
+def _refresh_task(task_id, task_data: dict):
+    # Re-apply priority and subtasks on an existing task found via dedup.
+    # Keeps the task's enriched fields current without creating a duplicate row.
+    if task_data.get("priority"):
+        update_task_field(task_id, "priority", task_data["priority"])
+    if task_data.get("subtasks") is not None:
+        update_task_subtasks(task_id, task_data["subtasks"])
+
+
 def store_tasks(state: AgentState):
     logger.info(f"store_tasks called. events_to_create count = {len(state.get('events_to_create', []))}")  # debug function entry
     # Insert only unmatched new tasks into tasks table
@@ -130,16 +140,31 @@ def store_tasks(state: AgentState):
                 "subtasks": enriched.get("subtasks", []),
             }
 
-            # Deduplication guard: skip insert if the same normalized text already exists in DB.
-            # This catches duplicates that slipped past the match node (e.g. slight LLM text variation across runs).
+            # Deduplication guard — exact normalized text match
             existing_task_id = fetch_task_by_normalized_text(norm_text)
             if existing_task_id:
-                logger.info(f"Dedup: task already exists (task_id={existing_task_id}), skipping insert for '{task_data['task_text']}'")
+                logger.info(f"Dedup (exact): task already exists (task_id={existing_task_id}), skipping insert for '{task_data['task_text']}'")
                 event["matched_task_id"] = existing_task_id
                 event["is_matched"] = True
                 event["matched_task_text"] = event.get("task_text")
                 event["match_method"] = "dedup"
                 event["match_confidence"] = "high"
+                _refresh_task(existing_task_id, task_data)
+                continue
+
+            # Deduplication guard — semantic similarity fallback for same-SOW re-runs
+            # where the LLM phrases the same task slightly differently across runs
+            semantic_match = fetch_semantic_task_match(task_data["task_text"])
+            if semantic_match and semantic_match.get("similarity_score", 0) >= 0.55:
+                existing_task_id = semantic_match["task_id"]
+                score = semantic_match["similarity_score"]
+                logger.info(f"Dedup (semantic {score:.2f}): task already exists (task_id={existing_task_id}), skipping insert for '{task_data['task_text']}'")
+                event["matched_task_id"] = existing_task_id
+                event["is_matched"] = True
+                event["matched_task_text"] = semantic_match.get("task_text")
+                event["match_method"] = "dedup_semantic"
+                event["match_confidence"] = "high" if score >= 0.85 else "medium"
+                _refresh_task(existing_task_id, task_data)
                 continue
 
             logger.info(f"Attempting to insert new task: {task_data['task_text']}")

@@ -74,12 +74,18 @@ def api_health() -> bool:
         return False
 
 
-def run_agent(text: str, thread_id: str) -> dict:
+def submit_run(text: str, thread_id: str) -> str:
     r = requests.post(
         f"{API_BASE}/run",
         json={"input_text": text, "thread_id": thread_id},
-        timeout=180,
+        timeout=10,
     )
+    r.raise_for_status()
+    return r.json()["job_id"]
+
+
+def poll_job(job_id: str) -> dict:
+    r = requests.get(f"{API_BASE}/jobs/{job_id}", timeout=10)
     r.raise_for_status()
     return r.json()
 
@@ -143,140 +149,185 @@ with tab_run:
                 with st.expander("Preview"):
                     st.text(input_text[:600] + ("…" if len(input_text) > 600 else ""))
 
+        is_running = "active_job_id" in st.session_state
+
         if not alive:
             st.warning("API is offline — start the FastAPI server on port 8000 first.")
+
         run_btn = st.button(
-            "▶ Run Agent",
+            "▶ Run Agent" if not is_running else "⏳ Running…",
             type="primary",
-            disabled=not alive or not input_text.strip(),
+            disabled=not alive or not input_text.strip() or is_running,
             use_container_width=True,
         )
+
+        if run_btn and input_text.strip():
+            try:
+                job_id = submit_run(input_text, thread_id)
+                st.session_state["active_job_id"] = job_id
+                st.session_state["job_start"] = time.time()
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to start run: {e}")
 
     # ── Results panel ─────────────────────────────────────────────────────────
     with col_out:
         st.subheader("Results")
 
-        if run_btn and input_text.strip():
-            with st.spinner("Agent is thinking…"):
-                try:
-                    result = run_agent(input_text, thread_id)
+        if is_running:
+            elapsed = int(time.time() - st.session_state.get("job_start", time.time()))
+            st.info(f"Agent is thinking… {elapsed}s elapsed")
+
+            try:
+                job = poll_job(st.session_state["active_job_id"])
+            except Exception as e:
+                st.error(f"Polling error: {e}")
+                del st.session_state["active_job_id"]
+                st.session_state.pop("job_start", None)
+                job = None
+
+            if job:
+                if job["status"] == "completed":
+                    result = job["result"]
                     st.session_state["last_result"] = result
                     st.session_state["run_index"] = st.session_state.get("run_index", 0) + 1
                     st.session_state["tasks_dirty"] = True
-                except Exception as e:
-                    st.error(f"API error: {e}")
+                    del st.session_state["active_job_id"]
+                    st.session_state.pop("job_start", None)
+                    st.rerun()
+                elif job["status"] == "failed":
+                    st.error(f"Agent failed: {job.get('error', 'unknown error')}")
+                    del st.session_state["active_job_id"]
+                    st.session_state.pop("job_start", None)
+                else:
+                    time.sleep(2)
+                    st.rerun()
 
-        result = st.session_state.get("last_result")
-
-        if not result:
-            st.info("Run the agent to see results here.")
         else:
-            # ── Intent + summary ──────────────────────────────────────────────
-            intent = result.get("intent", "unknown")
-            n_tasks = result.get("tasks_count", 0)
-            output  = result.get("output", "")
+            result = st.session_state.get("last_result")
 
-            if intent == "junk":
-                st.warning("Agent classified this input as non-actionable. No pipeline was run.")
-                if output:
-                    st.info(output)
+            if not result:
+                st.info("Run the agent to see results here.")
             else:
-                c1, c2 = st.columns(2)
-                c1.metric("Intent", intent.replace("_", " ").title())
-                c2.metric("Tasks processed", n_tasks)
-                if output:
-                    st.info(output)
+                # ── Intent + summary ──────────────────────────────────────────
+                intent = result.get("intent", "unknown")
+                n_tasks = result.get("tasks_count", 0)
+                output  = result.get("output", "")
 
-            # ── Pipeline stages ───────────────────────────────────────────────
-            st.markdown("---")
-            st.markdown("**Pipeline stages**")
+                if intent == "junk":
+                    st.warning("Agent classified this input as non-actionable. No pipeline was run.")
+                    if output:
+                        st.info(output)
+                else:
+                    c1, c2 = st.columns(2)
+                    c1.metric("Intent", intent.replace("_", " ").title())
+                    c2.metric("Tasks processed", n_tasks)
+                    if output:
+                        st.info(output)
 
-            vo          = result.get("validation_outcome", {})
-            tasks       = result.get("tasks", [])
-            n_subtasks  = sum(len(t.get("subtasks", [])) for t in tasks)
-            p_counts    = {"high": 0, "medium": 0, "low": 0}
-            for t in tasks:
-                p_counts[t.get("priority", "medium")] += 1
-
-            passed   = vo.get("passed", False)
-            iters    = vo.get("iterations", 1)
-            hit_max  = vo.get("hit_max_iterations", False)
-
-            stages = [
-                ("Extract",    f"{n_tasks} task(s) found"),
-                ("Normalize",  "events structured"),
-                ("Match",      f"{len(result.get('event_signals', []))} signal(s), {len(result.get('unresolved_events', []))} unresolved"),
-                ("Decompose",  f"{n_subtasks} subtask(s) generated"),
-                ("Prioritize", f"🔴 {p_counts['high']}  🟡 {p_counts['medium']}  🟢 {p_counts['low']}"),
-                ("Validate",   f"{'✅ Passed' if passed else '⚠️ Max iters' if hit_max else '❌ Failed'} (iter {iters})"),
-            ]
-
-            # Animate once per run, then render statically on subsequent reruns
-            run_index = st.session_state.get("run_index", 0)
-            animated_key = f"pipeline_animated_{run_index}"
-
-            pipeline_slot = st.empty()
-
-            def render_pipeline(n_done: int) -> str:
-                html = '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:6px 0">'
-                for i, (name, tip) in enumerate(stages):
-                    css  = "node-done" if i < n_done else "node-pending"
-                    icon = "✓" if i < n_done else "○"
-                    html += f'<span class="pipeline-node {css}" title="{tip}">{icon} {name}</span>'
-                    if i < len(stages) - 1:
-                        html += '<span style="color:#d1d5db;margin:0 2px">→</span>'
-                html += "</div>"
-                return html
-
-            if not st.session_state.get(animated_key):
-                for i in range(len(stages) + 1):
-                    pipeline_slot.markdown(render_pipeline(i), unsafe_allow_html=True)
-                    time.sleep(0.18)
-                st.session_state[animated_key] = True
-            else:
-                pipeline_slot.markdown(render_pipeline(len(stages)), unsafe_allow_html=True)
-
-            # Per-stage explainer on hover (shown as caption below)
-            with st.expander("Stage details"):
-                for name, detail in stages:
-                    st.markdown(f"**{name}** — {detail}")
-
-            if not passed:
-                feedback = vo.get("final_feedback", "")
-                if feedback:
-                    st.warning(f"Validation feedback: {feedback}")
-
-            # ── Agent observations ────────────────────────────────────────────
-            event_signals = result.get("event_signals", [])
-            unresolved    = result.get("unresolved_events", [])
-
-            if event_signals or unresolved:
+                # ── Pipeline stages ───────────────────────────────────────────
                 st.markdown("---")
-                st.markdown("**Agent observations**")
+                st.markdown("**Pipeline stages**")
 
-                signal_counts: dict = {}
-                for s in event_signals:
-                    et = s.get("event_type", "unknown")
-                    signal_counts[et] = signal_counts.get(et, 0) + 1
+                vo          = result.get("validation_outcome", {})
+                tasks       = result.get("tasks", [])
+                n_subtasks  = sum(len(t.get("subtasks", [])) for t in tasks)
+                p_counts    = {"high": 0, "medium": 0, "low": 0}
+                for t in tasks:
+                    p_counts[t.get("priority", "medium")] += 1
 
-                icons = {"blocker": "🚫", "deadline_change": "📅", "status_change": "🔄", "owner_change": "👤"}
-                for et, count in signal_counts.items():
-                    icon = icons.get(et, "📌")
-                    label = et.replace("_", " ").title()
-                    st.markdown(
-                        f'<div class="signal-box">{icon} <strong>{label}</strong>: {count} event(s) detected</div>',
-                        unsafe_allow_html=True,
-                    )
+                passed   = vo.get("passed", False)
+                iters    = vo.get("iterations", 1)
+                hit_max  = vo.get("hit_max_iterations", False)
 
-                if unresolved:
-                    st.markdown(
-                        f'<div class="signal-box">⚠️ <strong>Unresolved events</strong>: '
-                        f'{len(unresolved)} update(s) could not be matched to existing tasks</div>',
-                        unsafe_allow_html=True,
-                    )
-                    with st.expander(f"View {len(unresolved)} unresolved event(s)"):
-                        for u in unresolved:
-                            st.json(u)
+                stages = [
+                    ("Extract",    f"{n_tasks} task(s) found"),
+                    ("Normalize",  "events structured"),
+                    ("Match",      f"{len(result.get('event_signals', []))} signal(s), {len(result.get('unresolved_events', []))} unresolved"),
+                    ("Decompose",  f"{n_subtasks} subtask(s) generated"),
+                    ("Prioritize", f"🔴 {p_counts['high']}  🟡 {p_counts['medium']}  🟢 {p_counts['low']}"),
+                    ("Validate",   f"{'✅ Passed' if passed else '⚠️ Max iters' if hit_max else '❌ Failed'} (iter {iters})"),
+                ]
+
+                run_index = st.session_state.get("run_index", 0)
+                animated_key = f"pipeline_animated_{run_index}"
+
+                pipeline_slot = st.empty()
+
+                def render_pipeline(n_done: int) -> str:
+                    html = '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:6px 0">'
+                    for i, (name, tip) in enumerate(stages):
+                        css  = "node-done" if i < n_done else "node-pending"
+                        icon = "✓" if i < n_done else "○"
+                        html += f'<span class="pipeline-node {css}" title="{tip}">{icon} {name}</span>'
+                        if i < len(stages) - 1:
+                            html += '<span style="color:#d1d5db;margin:0 2px">→</span>'
+                    html += "</div>"
+                    return html
+
+                if not st.session_state.get(animated_key):
+                    for i in range(len(stages) + 1):
+                        pipeline_slot.markdown(render_pipeline(i), unsafe_allow_html=True)
+                        time.sleep(0.18)
+                    st.session_state[animated_key] = True
+                else:
+                    pipeline_slot.markdown(render_pipeline(len(stages)), unsafe_allow_html=True)
+
+                with st.expander("Stage details"):
+                    for name, detail in stages:
+                        st.markdown(f"**{name}** — {detail}")
+
+                if not passed:
+                    feedback = vo.get("final_feedback", "")
+                    if feedback:
+                        st.warning(f"Validation feedback: {feedback}")
+
+                # ── Tasks from this run ───────────────────────────────────────
+                if tasks:
+                    st.markdown("---")
+                    st.markdown("**Tasks from this run**")
+                    for t in tasks:
+                        pri   = t.get("priority", "medium")
+                        color = PRIORITY_COLORS.get(pri, "#6b7280")
+                        label = pri.upper()
+                        with st.expander(t.get("task", "")[:80]):
+                            st.markdown(badge(label, color), unsafe_allow_html=True)
+                            subs = t.get("subtasks", [])
+                            if subs:
+                                for s in subs:
+                                    st.markdown(f"- {s}")
+
+                # ── Agent observations ────────────────────────────────────────
+                event_signals = result.get("event_signals", [])
+                unresolved    = result.get("unresolved_events", [])
+
+                if event_signals or unresolved:
+                    st.markdown("---")
+                    st.markdown("**Agent observations**")
+
+                    signal_counts: dict = {}
+                    for s in event_signals:
+                        et = s.get("event_type", "unknown")
+                        signal_counts[et] = signal_counts.get(et, 0) + 1
+
+                    icons = {"blocker": "🚫", "deadline_change": "📅", "status_change": "🔄", "owner_change": "👤"}
+                    for et, count in signal_counts.items():
+                        icon = icons.get(et, "📌")
+                        label = et.replace("_", " ").title()
+                        st.markdown(
+                            f'<div class="signal-box">{icon} <strong>{label}</strong>: {count} event(s) detected</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                    if unresolved:
+                        st.markdown(
+                            f'<div class="signal-box">⚠️ <strong>Unresolved events</strong>: '
+                            f'{len(unresolved)} update(s) could not be matched to existing tasks</div>',
+                            unsafe_allow_html=True,
+                        )
+                        with st.expander(f"View {len(unresolved)} unresolved event(s)"):
+                            for u in unresolved:
+                                st.json(u)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 2 — Task Board
@@ -285,10 +336,10 @@ with tab_run:
 with tab_board:
     hdr, refresh_btn_col = st.columns([5, 1])
     hdr.subheader("Task Board")
+    hdr.caption("All active tasks in the database — includes tasks from all previous runs.")
     if refresh_btn_col.button("🔄 Refresh", key="board_refresh"):
         st.session_state.pop("board_tasks", None)
 
-    # Load tasks — refresh after a run or manual refresh
     if st.session_state.get("tasks_dirty") or "board_tasks" not in st.session_state:
         try:
             st.session_state["board_tasks"] = fetch_tasks()

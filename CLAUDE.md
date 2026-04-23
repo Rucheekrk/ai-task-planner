@@ -337,3 +337,5 @@ Agent (apps/agent.py)
 - **Deadline-aware agent prioritization** — agent reads deadlines from `pipeline_output.tasks` and reorders follow-up tool calls accordingly (e.g. call `check_owner_availability` for the owner with the nearest deadline first). Currently deadlines are stored but ignored at the agent level.
 
 - **Multi-run deduplication awareness** — agent notices "these tasks already exist from a previous session" (via `search_tasks` result) and routes to `update_task_status` instead of silently re-creating. Currently dedup is handled at the DB layer but the agent doesn't reason about it.
+
+- **Input caching / same-input short-circuit** — if the same input text is submitted again under the same `thread_id`, skip the pipeline entirely and return the cached result immediately. Approach: compute SHA256 of `(input_text, thread_id)` at the API layer; store `(hash, result, timestamp)` in Postgres; on a cache hit, return the stored result with a "Previously processed" banner in the UI. Add a **Force re-run** toggle in the UI to bypass the cache when a fresh pipeline run is genuinely needed (e.g. after manual task edits or prompt changes).

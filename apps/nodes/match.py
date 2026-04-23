@@ -124,14 +124,14 @@ def task_match_node(state: AgentState) -> AgentState:
 
                 logger.info(f"Semantic score for '{task_text}' = {score}")
 
-                if score >= 0.60:
+                if score >= 0.55:
                     best_match = semantic_match
                     best_score = score
                     match_method = "semantic"
-                    
+
                     if score >= 0.85:
                         match_confidence = "high"
-                    elif score >= 0.70:
+                    elif score >= 0.65:
                         match_confidence = "medium"
                     else:
                         match_confidence = "low"
