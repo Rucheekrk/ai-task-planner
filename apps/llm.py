@@ -14,6 +14,7 @@ def call_llm(prompt: str) -> str:
     response = client.responses.create(
         model="gpt-4o-mini",
         input=prompt,
+        temperature=0,
     )
     return response.output_text
 
@@ -24,6 +25,7 @@ def call_llm_json(prompt: str) -> dict:
     response = client.responses.create(
         model="gpt-4o-mini",
         input=prompt,
+        temperature=0,
     )
 
     raw_text = response.output_text.strip()
