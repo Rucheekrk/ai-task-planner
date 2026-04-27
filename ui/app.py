@@ -155,36 +155,34 @@ with tab_run:
         if not alive:
             st.warning("API is offline — start the FastAPI server on port 8000 first.")
 
-        btn_disabled = not alive or not input_text.strip() or is_running
-        btn_col, force_col = st.columns([3, 2])
+        if is_running:
+            st.button("⏳ Running…", type="primary", disabled=True,
+                      use_container_width=True, key="run_btn_running")
+        else:
+            can_run = alive and bool(input_text.strip())
+            btn_col, force_col = st.columns([3, 2])
 
-        with btn_col:
-            run_btn = st.button(
-                "▶ Run Agent" if not is_running else "⏳ Running…",
-                type="primary",
-                disabled=btn_disabled,
-                use_container_width=True,
-            )
+            with btn_col:
+                run_btn = st.button("▶ Run Agent", type="primary",
+                                    disabled=not can_run,
+                                    use_container_width=True, key="run_btn")
+            with force_col:
+                force_btn = st.button("🔄 Force Re-run",
+                                      disabled=not can_run,
+                                      use_container_width=True, key="force_btn",
+                                      help="Bypass cache and re-run the pipeline even if this document was processed before.")
 
-        with force_col:
-            force_btn = st.button(
-                "🔄 Force Re-run",
-                disabled=btn_disabled,
-                use_container_width=True,
-                help="Bypass cache and re-run the pipeline even if this document was processed before.",
-            )
-
-        for pressed, force in [(run_btn, False), (force_btn, True)]:
-            if pressed and input_text.strip():
-                try:
-                    job_id, from_cache = submit_run(input_text, thread_id, force_run=force)
-                    st.session_state["active_job_id"] = job_id
-                    st.session_state["job_start"] = time.time()
-                    st.session_state["from_cache"] = from_cache
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed to start run: {e}")
-                break
+            for pressed, force in [(run_btn, False), (force_btn, True)]:
+                if pressed and input_text.strip():
+                    try:
+                        job_id, from_cache = submit_run(input_text, thread_id, force_run=force)
+                        st.session_state["active_job_id"] = job_id
+                        st.session_state["job_start"] = time.time()
+                        st.session_state["from_cache"] = from_cache
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to start run: {e}")
+                    break
 
     # ── Results panel ─────────────────────────────────────────────────────────
     with col_out:

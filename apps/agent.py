@@ -342,12 +342,18 @@ def execute_node(state: AgentSessionState) -> AgentSessionState:
             f"unresolved={len(pipeline_output.get('unresolved_events', []))}"
         )
 
-    # Run MCP tools asynchronously in a fresh event loop.
+    # Run MCP tools asynchronously in a fresh event loop with a 60s timeout.
     # asyncio.run() raises RuntimeError if called from a thread that already has a running loop
     # (common under FastAPI). Creating a new loop explicitly avoids that conflict.
+    # The wait_for timeout prevents a slow/unreachable MCP server from hanging forever.
     loop = asyncio.new_event_loop()
     try:
-        mcp_results = loop.run_until_complete(_run_mcp_tools(tool_calls))
+        mcp_results = loop.run_until_complete(
+            asyncio.wait_for(_run_mcp_tools(tool_calls), timeout=60)
+        )
+    except asyncio.TimeoutError:
+        logger.error("MCP tool execution timed out after 60s")
+        mcp_results = [{"error": "MCP tools timed out after 60s"}]
     finally:
         loop.close()
     tool_results.extend(mcp_results)

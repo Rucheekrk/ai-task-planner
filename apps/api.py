@@ -1,3 +1,4 @@
+import concurrent.futures
 import hashlib
 import threading
 import uuid
@@ -44,9 +45,20 @@ def _startup():
         logger.info(f"Startup cleanup: removed {deleted} stale job row(s)")
 
 
+MAX_JOB_SECONDS = 360  # 6 minutes — hard cap on total agent runtime
+
+
 def _run_agent_job(job_id: str, input_text: str, thread_id: str) -> None:
     try:
-        result = run_agent(input_text, thread_id)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(run_agent, input_text, thread_id)
+            try:
+                result = future.result(timeout=MAX_JOB_SECONDS)
+            except concurrent.futures.TimeoutError:
+                msg = f"Agent timed out after {MAX_JOB_SECONDS // 60} minutes"
+                logger.error(f"Job {job_id}: {msg}")
+                fail_job(job_id, msg)
+                return
         # Strip messages — LangChain message objects (SystemMessage, HumanMessage, AIMessage)
         # are not JSON serializable. _format_run_result only needs pipeline_output, plan, output.
         serializable = {k: v for k, v in result.items() if k != "messages"}
