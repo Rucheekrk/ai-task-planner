@@ -179,6 +179,8 @@ with tab_run:
                         st.session_state["active_job_id"] = job_id
                         st.session_state["job_start"] = time.time()
                         st.session_state["from_cache"] = from_cache
+                        st.session_state.pop("last_result", None)
+                        st.session_state.pop("last_from_cache", None)
                         st.rerun()
                     except Exception as e:
                         st.error(f"Failed to start run: {e}")
