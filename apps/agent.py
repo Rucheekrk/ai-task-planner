@@ -349,11 +349,11 @@ def execute_node(state: AgentSessionState) -> AgentSessionState:
     loop = asyncio.new_event_loop()
     try:
         mcp_results = loop.run_until_complete(
-            asyncio.wait_for(_run_mcp_tools(tool_calls), timeout=60)
+            asyncio.wait_for(_run_mcp_tools(tool_calls), timeout=150)
         )
     except asyncio.TimeoutError:
-        logger.error("MCP tool execution timed out after 60s")
-        mcp_results = [{"error": "MCP tools timed out after 60s"}]
+        logger.error("MCP tool execution timed out after 150s")
+        mcp_results = [{"error": "MCP tools timed out after 150s"}]
     finally:
         loop.close()
     tool_results.extend(mcp_results)
