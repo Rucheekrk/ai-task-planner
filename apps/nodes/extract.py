@@ -1,3 +1,4 @@
+import concurrent.futures
 from difflib import SequenceMatcher
 import re
 
@@ -9,11 +10,10 @@ from prompts.extract.prompt import get_extract_prompt
 logger = get_logger("EXTRACT")
 
 # Inputs shorter than this are sent as a single LLM call — no chunking needed.
-# ~6000 chars ≈ 1500 words, well within gpt-4o-mini's context with the extract prompt.
-CHUNK_THRESHOLD = 6000
-CHUNK_SIZE = 6000
-# Overlap ensures a task that straddles two chunk boundaries appears fully in one of them.
-CHUNK_OVERLAP = 200
+CHUNK_THRESHOLD = 15000
+CHUNK_SIZE = 15000
+# 10% overlap ensures tasks straddling chunk boundaries appear fully in at least one chunk.
+CHUNK_OVERLAP = 1500
 
 
 def _chunk_text(text: str) -> list:
@@ -68,23 +68,22 @@ def task_extract_node(state: AgentState) -> AgentState:
         chunks = _chunk_text(raw_input)
         logger.info(f"Input ({len(raw_input)} chars) split into {len(chunks)} chunk(s)")
 
-    all_task_lists = []
-
-    for i, chunk in enumerate(chunks):
+    def _extract_chunk(args):
+        i, chunk = args
         prompt = get_extract_prompt(raw_input=chunk)
         try:
             result = call_llm_json(prompt)
         except Exception as e:
             logger.error(f"LLM call failed on chunk {i + 1}/{len(chunks)}: {e}")
-            continue
+            return i, []
 
         tasks = result.get("tasks", [])
         if not isinstance(tasks, list):
             logger.warning(f"Chunk {i + 1}: invalid tasks format from LLM, skipping")
-            continue
+            return i, []
 
-        cleaned = []
         valid_confidence = {"high", "medium", "low"}
+        cleaned = []
         for item in tasks:
             if isinstance(item, dict) and "task" in item:
                 task_text = item["task"].strip()
@@ -94,8 +93,16 @@ def task_extract_node(state: AgentState) -> AgentState:
                     confidence = "medium"
                 cleaned.append({"task": task_text, "confidence": confidence})
 
+        logger.info(f"Chunk {i + 1}/{len(chunks)}: {len(cleaned)} task(s) extracted")
+        return i, cleaned
+
+    # Run all chunk LLM calls in parallel — results are sorted by chunk index to preserve order.
+    all_task_lists = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(_extract_chunk, enumerate(chunks)))
+
+    for _, cleaned in sorted(results, key=lambda x: x[0]):
         if cleaned:
-            logger.info(f"Chunk {i + 1}/{len(chunks)}: {len(cleaned)} task(s) extracted")
             all_task_lists.append(cleaned)
 
     final_tasks = _dedup_tasks(all_task_lists)
