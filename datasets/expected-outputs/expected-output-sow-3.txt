@@ -1,0 +1,72 @@
+INTENT:
+task_planning
+
+TASK COUNT:
+7
+
+TASKS:
+
+1. Initiate and plan project
+   Priority: high
+   Subtasks:
+   - Define project scope and objectives
+   - Identify and confirm key stakeholders
+   - Host project kickoff meeting
+
+2. Execute Aria Automation assessment
+   Priority: high
+   Subtasks:
+   - Assess current environment readiness for Aria Automation
+   - Review existing workflows, blueprints, integrations and dependencies
+   - Review current vRA licensing and configuration state
+
+3. Design and implement VMware Aria Automation
+   Priority: high
+   Subtasks:
+   - Conduct design workshop to gather requirements
+   - Configure Cloud Assembly constructs (cloud accounts, zones, flavor/image/network/storage mappings, blueprints)
+   - Deploy vRealize Suite using Easy Installer (Identity Manager, Lifecycle Manager, vRA appliances)
+
+4. Develop vRA (Aria) automation workflows and blueprints for DEV/TEST/PROD
+   Priority: high
+   Subtasks:
+   - Build automation for Windows 2019/2022 server provisioning including agent installation
+   - Implement server deprovisioning workflow (shutdown, cleanup from SolarWinds, AD, DNS, vCenter, MECM, Rapid7)
+   - Develop integrations (Infoblox, ServiceNow, Azure Government Cloud, Terraform, GitHub Enterprise, Active Directory)
+
+5. Validate vRA (Aria) automation workflows and blueprints
+   Priority: high
+   Subtasks:
+   - Validate DEV environment workflows and blueprints
+   - Validate TEST environment workflows and blueprints
+   - Validate PROD environment workflows and blueprints
+
+6. Conduct knowledge transfer
+   Priority: medium
+   Subtasks:
+   - Deliver vRA (Aria) platform overview workshop
+   - Deliver workflow and blueprint knowledge transfer session
+   - Cover service catalog management, custom forms, and troubleshooting
+
+7. Finalize documentation of vRealize Automation configuration
+   Priority: low
+   Subtasks:
+   - Document solution design and integration/extensibility specifications
+   - Compile development and validation workbooks
+   - Deliver as-built documentation
+
+
+EVENTS:
+Total: 7
+Type: new_task (all)
+
+WHAT SHOULD NOT BE EXTRACTED:
+- Bullet points listed as objectives of the project kickoff meeting (introducing team, describing goals, agreeing on communications plan, validating expectations, confirming prerequisites)
+- High-level activity phases listed under "The following are the high-level activities included in this project" (Execute: Assessment, Execute: Design, Execute: Implement, Execute: Knowledge Transfer) — these are phase labels, not separate tasks
+- Customer responsibilities (provide remote access, maintain support agreements, attend review meetings, provide resources)
+- Out-of-scope items (third-party app installation, OS administration, physical network changes, remediation)
+- Product version requirements (VMware vSphere 8x, VCF 5.x, Aria Automation 8.8)
+- Assumptions and general engagement terms
+
+STATUS:
+completed

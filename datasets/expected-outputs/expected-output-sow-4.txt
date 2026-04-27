@@ -1,0 +1,164 @@
+INTENT:
+task_planning
+
+TASK COUNT:
+18
+
+TASKS:
+
+--- ARIA OPERATIONS ---
+
+1. Deploy and configure Aria Operations environment
+   Priority: high
+   Subtasks:
+   - Size the environment
+   - Deploy Aria Operations
+   - Verify deployment
+
+2. Deploy and configure TVS modules
+   Priority: high
+   Subtasks:
+   - Identify relevant TVS modules for the environment
+   - Deploy each module
+   - Validate module configuration
+
+3. Set up integrations with NSX-T and other Aria products
+   Priority: high
+   Subtasks:
+   - Configure NSX-T integration
+   - Configure integrations with other Aria products
+   - Validate all integrations
+
+4. Create multi-tiered application monitoring dashboards
+   Priority: medium
+   Subtasks:
+   - Define monitoring requirements for two applications
+   - Build dashboards for each application
+   - Validate dashboard data accuracy
+
+5. Configure cost reporting
+   Priority: medium
+   Subtasks:
+   - Define cost reporting requirements
+   - Configure cost reporting in Aria Operations
+   - Validate cost reports
+
+6. Create process to address VMs with low disk space
+   Priority: medium
+   Subtasks:
+   - Define threshold and alerting criteria
+   - Build automated remediation process
+   - Test and validate the process
+
+--- ARIA AUTOMATION ---
+
+7. Deploy and configure Aria Automation environment
+   Priority: high
+   Subtasks:
+   - Size the environment
+   - Deploy Aria Automation
+   - Verify deployment
+
+8. Implement IPAM integration with Infoblox BloxOne DDI
+   Priority: high
+   Subtasks:
+   - Configure Infoblox BloxOne DDI connection
+   - Integrate with Aria Automation
+   - Validate IP address allocation through integration
+
+9. Build Windows server VM deployment blueprint
+   Priority: high
+   Subtasks:
+   - Gather requirements for Windows server deployment
+   - Design and build the deployment blueprint
+   - Test and validate the blueprint
+
+10. Build Windows server VM decommission blueprint
+    Priority: high
+    Subtasks:
+    - Gather requirements for server decommissioning
+    - Design and build the decommission blueprint
+    - Test and validate the blueprint
+
+11. Create Service Catalog
+    Priority: high
+    Subtasks:
+    - Define catalog items and categories
+    - Configure Service Catalog in Aria Automation
+    - Validate catalog availability and access
+
+12. Implement Freshservice ITSM integration
+    Priority: medium
+    Subtasks:
+    - Configure Freshservice connection in Aria Automation
+    - Map workflows to ITSM processes
+    - Test and validate integration
+
+--- BROWNFIELD VCF ---
+
+13. Assess feasibility of migrating non-VCF managed hosts and NSX environment into VCF
+    Priority: high
+    Subtasks:
+    - Review current non-VCF host and NSX configuration
+    - Evaluate migration compatibility
+    - Document findings and recommendations
+
+14. Execute remediation steps to prepare for VCF brownfield migration
+    Priority: high
+    Subtasks:
+    - Identify all remediation items from assessment
+    - Implement required changes
+    - Validate environment readiness for migration
+
+15. Complete VCF brownfield migration
+    Priority: high
+    Subtasks:
+    - Execute migration of non-VCF hosts into VCF
+    - Migrate NSX environment
+    - Validate post-migration state
+
+--- ARIA OPERATIONS FOR NETWORKS ---
+
+16. Review architecture and clean up existing Aria Operations for Networks environment
+    Priority: medium
+    Subtasks:
+    - Conduct architecture review and health check
+    - Identify and clean up issues
+    - Document findings
+
+17. Add physical network infrastructure to Aria Operations for Networks
+    Priority: medium
+    Subtasks:
+    - Identify infrastructure to be added
+    - Configure physical network devices in Aria Operations
+    - Validate discovery and monitoring
+
+18. Configure multi-tiered application discovery
+    Priority: medium
+    Subtasks:
+    - Define discovery requirements for two applications
+    - Configure application discovery
+    - Validate discovery accuracy
+
+--- PROJECT MANAGEMENT (may or may not be extracted) ---
+
+Note: The following PM activities are described in the PROJECT OVERSIGHT section and may be extracted as additional tasks (bringing total to 19-20):
+- Conduct project kickoff meeting (review SOW, confirm participants, discuss prerequisites)
+- Perform project closure (recap activities, provide documentation, identify next steps)
+
+
+EVENTS:
+Total: 18 (core) + up to 2 PM tasks
+Type: new_task (all)
+
+WHAT SHOULD NOT BE EXTRACTED:
+- Legal and contractual terms (change management, termination clauses, payment terms, rate tables)
+- Assumptions and general engagement terms
+- Out-of-scope items (infrastructure changes outside VMware, network/storage troubleshooting, production VM changes, onsite work)
+- Signatures section
+- Customer responsibility statements (providing access, facility rules, disabling CDW credentials after project)
+- Pricing and billing details ($115,590, hourly rates, billable units)
+- Customer-Designated Location address
+
+STATUS:
+completed

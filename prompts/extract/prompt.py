@@ -300,6 +300,7 @@ Output:
 - Do not produce subtasks in this node
 - Do not over-infer hidden intentions
 - Do not convert every meeting topic into a task unless it clearly implies action
+- If the same work appears more than once in the input — phrased differently but describing the same action — extract it as one task, not multiple. Do not extract a task once from a summary section and again from a detailed section of the same document.
 
 Examples:
 Input: "I need to apply for jobs"
