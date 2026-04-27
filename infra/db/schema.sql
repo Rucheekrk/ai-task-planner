@@ -94,6 +94,23 @@ CREATE INDEX IF NOT EXISTS idx_agent_jobs_created_at ON agent_jobs(created_at);
 -- );
 -- CREATE INDEX IF NOT EXISTS idx_agent_jobs_created_at ON agent_jobs(created_at);
 
+-- Source documents table: stores each unique input document exactly once.
+-- task_events references this via source_doc_id instead of storing the full text per row.
+-- content_hash (SHA256) enables fast exact-dedup without full-text comparison.
+CREATE TABLE IF NOT EXISTS source_documents (
+    doc_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    content TEXT NOT NULL,
+    content_hash CHAR(64) NOT NULL UNIQUE,
+    pipeline_result JSONB,          -- cached formatted API result; NULL until first successful run
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_source_documents_hash ON source_documents(content_hash);
+
+-- Migration for existing DBs (run in order):
+-- ALTER TABLE task_events ADD COLUMN IF NOT EXISTS source_doc_id UUID REFERENCES source_documents(doc_id);
+-- ALTER TABLE task_events DROP COLUMN IF EXISTS source_input;
+
 CREATE INDEX idx_tasks_normalized_task_text ON tasks(normalized_task_text);
 CREATE INDEX idx_tasks_owner ON tasks(owner);
 CREATE INDEX idx_task_events_task_id ON task_events(task_id);

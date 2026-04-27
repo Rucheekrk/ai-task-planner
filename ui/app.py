@@ -74,14 +74,15 @@ def api_health() -> bool:
         return False
 
 
-def submit_run(text: str, thread_id: str) -> str:
+def submit_run(text: str, thread_id: str, force_run: bool = False) -> tuple:
     r = requests.post(
         f"{API_BASE}/run",
-        json={"input_text": text, "thread_id": thread_id},
+        json={"input_text": text, "thread_id": thread_id, "force_run": force_run},
         timeout=10,
     )
     r.raise_for_status()
-    return r.json()["job_id"]
+    data = r.json()
+    return data["job_id"], data.get("from_cache", False)
 
 
 def poll_job(job_id: str) -> dict:
@@ -154,21 +155,36 @@ with tab_run:
         if not alive:
             st.warning("API is offline — start the FastAPI server on port 8000 first.")
 
-        run_btn = st.button(
-            "▶ Run Agent" if not is_running else "⏳ Running…",
-            type="primary",
-            disabled=not alive or not input_text.strip() or is_running,
-            use_container_width=True,
-        )
+        btn_disabled = not alive or not input_text.strip() or is_running
+        btn_col, force_col = st.columns([3, 2])
 
-        if run_btn and input_text.strip():
-            try:
-                job_id = submit_run(input_text, thread_id)
-                st.session_state["active_job_id"] = job_id
-                st.session_state["job_start"] = time.time()
-                st.rerun()
-            except Exception as e:
-                st.error(f"Failed to start run: {e}")
+        with btn_col:
+            run_btn = st.button(
+                "▶ Run Agent" if not is_running else "⏳ Running…",
+                type="primary",
+                disabled=btn_disabled,
+                use_container_width=True,
+            )
+
+        with force_col:
+            force_btn = st.button(
+                "🔄 Force Re-run",
+                disabled=btn_disabled,
+                use_container_width=True,
+                help="Bypass cache and re-run the pipeline even if this document was processed before.",
+            )
+
+        for pressed, force in [(run_btn, False), (force_btn, True)]:
+            if pressed and input_text.strip():
+                try:
+                    job_id, from_cache = submit_run(input_text, thread_id, force_run=force)
+                    st.session_state["active_job_id"] = job_id
+                    st.session_state["job_start"] = time.time()
+                    st.session_state["from_cache"] = from_cache
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to start run: {e}")
+                break
 
     # ── Results panel ─────────────────────────────────────────────────────────
     with col_out:
@@ -190,10 +206,12 @@ with tab_run:
                 if job["status"] == "completed":
                     result = job["result"]
                     st.session_state["last_result"] = result
+                    st.session_state["last_from_cache"] = job.get("from_cache", False)
                     st.session_state["run_index"] = st.session_state.get("run_index", 0) + 1
                     st.session_state["tasks_dirty"] = True
                     del st.session_state["active_job_id"]
                     st.session_state.pop("job_start", None)
+                    st.session_state.pop("from_cache", None)
                     st.rerun()
                 elif job["status"] == "failed":
                     st.error(f"Agent failed: {job.get('error', 'unknown error')}")
@@ -209,6 +227,9 @@ with tab_run:
             if not result:
                 st.info("Run the agent to see results here.")
             else:
+                if st.session_state.get("last_from_cache"):
+                    st.info("⚡ Retrieved from cache — this document was processed before. Use **Force Re-run** to re-run the pipeline.")
+
                 # ── Intent + summary ──────────────────────────────────────────
                 intent = result.get("intent", "unknown")
                 n_tasks = result.get("tasks_count", 0)
