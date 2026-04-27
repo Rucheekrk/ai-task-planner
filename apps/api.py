@@ -1,3 +1,4 @@
+import hashlib
 import threading
 import uuid
 from typing import Any, List, Optional
@@ -8,11 +9,13 @@ from pydantic import BaseModel
 
 from apps.agent import run_agent
 from apps.db.db import (
+    cache_pipeline_result,
     cleanup_old_jobs,
     complete_job,
     create_job,
     ensure_jobs_table,
     fail_job,
+    get_cached_pipeline_result,
     get_job,
 )
 from apps.logger import get_logger
@@ -45,6 +48,9 @@ def _run_agent_job(job_id: str, input_text: str, thread_id: str) -> None:
     try:
         result = run_agent(input_text, thread_id)
         complete_job(job_id, result)
+        # Cache the formatted result so the same input can be served instantly next time.
+        formatted = _format_run_result(result)
+        cache_pipeline_result(input_text, formatted)
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}")
         fail_job(job_id, str(e))
@@ -76,6 +82,7 @@ def _format_run_result(result: dict) -> dict:
 class RunRequest(BaseModel):
     input_text: str
     thread_id: str = "default"
+    force_run: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -90,18 +97,31 @@ def health():
 
 @app.post("/run")
 async def run(request: RunRequest):
-    """Submit an agent run. Returns a job_id immediately; poll GET /jobs/{job_id} for results."""
+    """Submit an agent run. Returns a job_id immediately; poll GET /jobs/{job_id} for results.
+    Set force_run=true to bypass the cache and re-run the pipeline even for a known input."""
     job_id = str(uuid.uuid4())
-    create_job(job_id)
+    content_hash = hashlib.sha256(request.input_text.encode()).hexdigest()
 
+    if not request.force_run:
+        cached = get_cached_pipeline_result(content_hash)
+        if cached:
+            # Serve cached result immediately — no agent run needed.
+            # Store the result under a _cached_result key so poll_job can detect it
+            # and return it directly without passing it through _format_run_result again.
+            create_job(job_id)
+            complete_job(job_id, {"_cached_result": cached})
+            logger.info(f"POST /run — cache hit, job_id={job_id} hash={content_hash[:12]}…")
+            return {"job_id": job_id, "from_cache": True}
+
+    create_job(job_id)
     thread = threading.Thread(
         target=_run_agent_job,
         args=(job_id, request.input_text, request.thread_id),
         daemon=True,
     )
     thread.start()
-    logger.info(f"POST /run — job_id={job_id} thread_id={request.thread_id}")
-    return {"job_id": job_id}
+    logger.info(f"POST /run — job_id={job_id} thread_id={request.thread_id} force={request.force_run}")
+    return {"job_id": job_id, "from_cache": False}
 
 
 @app.get("/jobs/{job_id}")
@@ -113,7 +133,10 @@ def poll_job(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     if job["status"] == "completed":
-        return {"status": "completed", "result": _format_run_result(job["result"])}
+        raw = job["result"]
+        if isinstance(raw, dict) and "_cached_result" in raw:
+            return {"status": "completed", "result": raw["_cached_result"], "from_cache": True}
+        return {"status": "completed", "result": _format_run_result(raw), "from_cache": False}
 
     if job["status"] == "failed":
         return {"status": "failed", "error": job.get("error", "unknown error")}

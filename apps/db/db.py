@@ -68,6 +68,39 @@ def insert_task(task):
     return task_id
 
 
+def get_cached_pipeline_result(content_hash: str):
+    # Return the cached formatted pipeline result for this document hash, or None if not cached.
+    conn = get_connection()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            "SELECT pipeline_result FROM source_documents WHERE content_hash = %s",
+            (content_hash,)
+        )
+        row = cur.fetchone()
+    conn.close()
+    if row and row["pipeline_result"]:
+        return row["pipeline_result"]
+    return None
+
+
+def cache_pipeline_result(content: str, result: dict):
+    import hashlib
+    import json as _json
+    # Upsert: create the source_documents row if it doesn't exist yet (e.g. junk input where
+    # store_events was skipped), then write the formatted result into pipeline_result.
+    content_hash = hashlib.sha256(content.encode()).hexdigest()
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO source_documents (content, content_hash, pipeline_result)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (content_hash) DO UPDATE SET pipeline_result = EXCLUDED.pipeline_result
+    """, (content, content_hash, _json.dumps(result)))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 def upsert_source_document(content: str) -> str:
     import hashlib
     # SHA256 of the full content — used as a unique key so the same document

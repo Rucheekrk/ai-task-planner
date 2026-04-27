@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS source_documents (
     doc_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     content TEXT NOT NULL,
     content_hash CHAR(64) NOT NULL UNIQUE,
+    pipeline_result JSONB,          -- cached formatted API result; NULL until first successful run
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
