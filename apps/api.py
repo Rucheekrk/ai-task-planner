@@ -47,9 +47,11 @@ def _startup():
 def _run_agent_job(job_id: str, input_text: str, thread_id: str) -> None:
     try:
         result = run_agent(input_text, thread_id)
-        complete_job(job_id, result)
-        # Cache the formatted result so the same input can be served instantly next time.
-        formatted = _format_run_result(result)
+        # Strip messages — LangChain message objects (SystemMessage, HumanMessage, AIMessage)
+        # are not JSON serializable. _format_run_result only needs pipeline_output, plan, output.
+        serializable = {k: v for k, v in result.items() if k != "messages"}
+        complete_job(job_id, serializable)
+        formatted = _format_run_result(serializable)
         cache_pipeline_result(input_text, formatted)
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}")
