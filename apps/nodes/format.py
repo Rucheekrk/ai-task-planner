@@ -8,6 +8,7 @@ from apps.db.db import (
     fetch_task_by_normalized_text,
     fetch_semantic_task_match,
     log_unresolved_event,
+    upsert_source_document,
 )
 import re
 
@@ -55,16 +56,16 @@ def task_format_node(state: AgentState) -> AgentState:
     # Clear refine target after successful completion
     state["refine_target"] = ""
 
-    # Summarise unresolved events for the agent (strip source_input — full transcript not needed)
+    # Summarise unresolved events for the agent (strip source_doc_id — UUID reference not useful at agent level)
     unresolved_summary = [
-        {k: v for k, v in event.items() if k != "source_input"}
+        {k: v for k, v in event.items() if k != "source_doc_id"}
         for event in state.get("unresolved_events", [])
     ]
 
     # Expose non-new_task matched events so the agent can react to event types (blocker, deadline_change, etc.)
-    # Strip source_input — full transcript is not needed at the agent level
+    # Strip source_doc_id — UUID reference not useful at the agent level
     event_signals = [
-        {k: v for k, v in event.items() if k not in ("source_input",)}
+        {k: v for k, v in event.items() if k != "source_doc_id"}
         for event in state.get("matched_events", [])
         if event.get("event_type") not in ("new_task", None)
     ]
@@ -183,12 +184,19 @@ def store_tasks(state: AgentState):
 
 
 def store_events(state: AgentState):
-    # Insert all matched events into task_events history table
+    # Insert all matched events into task_events history table.
+    # The source document is stored once in source_documents and all events
+    # reference it via source_doc_id — not by duplicating the full text per row.
     matched_events = state.get("matched_events", [])
     raw_input = state.get("raw_input", "")
 
+    if not matched_events:
+        return
+
+    doc_id = upsert_source_document(raw_input)
+
     for event in matched_events:
-        event["source_input"] = raw_input
+        event["source_doc_id"] = doc_id
         insert_event(event)
 
 

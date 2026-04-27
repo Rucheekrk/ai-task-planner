@@ -68,9 +68,39 @@ def insert_task(task):
     return task_id
 
 
+def upsert_source_document(content: str) -> str:
+    import hashlib
+    # SHA256 of the full content — used as a unique key so the same document
+    # submitted twice maps to the same row rather than creating a duplicate.
+    content_hash = hashlib.sha256(content.encode()).hexdigest()
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO source_documents (content, content_hash)
+        VALUES (%s, %s)
+        ON CONFLICT (content_hash) DO NOTHING
+        RETURNING doc_id
+    """, (content, content_hash))
+    row = cur.fetchone()
+    if row:
+        doc_id = row[0]
+    else:
+        # Document already existed — fetch the existing doc_id
+        cur.execute(
+            "SELECT doc_id FROM source_documents WHERE content_hash = %s",
+            (content_hash,)
+        )
+        doc_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    return str(doc_id)
+
+
 def insert_event(event):
     # Append an immutable event record to task_events.
     # Every matched event (new task, update, blocker, etc.) is logged here for audit history.
+    # source_doc_id references source_documents — the full input text is stored once there.
     conn = get_connection()
     cur = conn.cursor()
 
@@ -78,7 +108,7 @@ def insert_event(event):
         INSERT INTO task_events (
             task_id, event_type, task_text, owner, status,
             deadline, blocker, dependency, match_method,
-            match_confidence, source_input
+            match_confidence, source_doc_id
         )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (
@@ -92,7 +122,7 @@ def insert_event(event):
         event.get("dependency"),
         event.get("match_method"),
         event.get("match_confidence"),
-        event.get("source_input"),
+        event.get("source_doc_id"),
     ))
 
     conn.commit()
