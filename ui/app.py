@@ -91,8 +91,17 @@ def poll_job(job_id: str) -> dict:
     return r.json()
 
 
-def fetch_tasks(query=None, owner=None, status=None) -> list:
-    params = {k: v for k, v in {"query": query, "owner": owner, "status": status}.items() if v}
+def fetch_projects() -> list:
+    try:
+        r = requests.get(f"{API_BASE}/projects", timeout=5)
+        r.raise_for_status()
+        return r.json().get("projects", [])
+    except Exception:
+        return []
+
+
+def fetch_tasks(query=None, owner=None, status=None, project_id=None) -> list:
+    params = {k: v for k, v in {"query": query, "owner": owner, "status": status, "project_id": project_id}.items() if v}
     r = requests.get(f"{API_BASE}/tasks", params=params, timeout=10)
     r.raise_for_status()
     return r.json().get("tasks", [])
@@ -115,8 +124,27 @@ with st.sidebar:
     alive = api_health()
     st.markdown(f"**API:** {'🟢 Online' if alive else '🔴 Offline'}")
     st.divider()
-    thread_id = st.text_input("Thread ID", value="demo", help="Agent memory is scoped to this ID")
-    st.caption("Use a consistent thread ID to accumulate context across runs.")
+
+    existing_projects = fetch_projects() if alive else []
+    NEW_PROJECT = "＋ New project…"
+    project_options = [NEW_PROJECT] + existing_projects
+
+    selected = st.selectbox(
+        "Project",
+        project_options,
+        help="Each project has its own task scope and agent memory.",
+    )
+
+    if selected == NEW_PROJECT:
+        new_name = st.text_input("Project name", placeholder="e.g. alpha-corp-sow")
+        thread_id = new_name.strip() if new_name.strip() else "default"
+        if not new_name.strip():
+            st.caption("Enter a project name to begin.")
+        else:
+            st.caption(f"New project: **{thread_id}**")
+    else:
+        thread_id = selected
+        st.caption(f"Project: **{thread_id}**")
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 

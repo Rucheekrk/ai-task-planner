@@ -1,3 +1,4 @@
+import argparse
 import sys
 import json
 
@@ -12,13 +13,21 @@ logger = get_logger("MAIN")
 
 
 if __name__ == "__main__":
-    print("Reading input from stdin... (use: python3 main.py < input.txt)\n")
+    parser = argparse.ArgumentParser(description="AI Task Planner CLI")
+    parser.add_argument(
+        "--thread-id",
+        default="default",
+        help="Project / thread ID — scopes agent memory and task matching to this project (default: 'default')",
+    )
+    args = parser.parse_args()
+    thread_id = args.thread_id
 
-    # Read full input from stdin — supports piped files or interactive typing
+    print(f"Project: {thread_id}")
+    print("Reading input from stdin... (use: python3 main.py --thread-id <project> < input.txt)\n")
+
     user_input = sys.stdin.read().strip()
 
-    # Run the top-level ReAct agent (intent classification → pipeline → MCP tools)
-    result = run_agent(user_input)
+    result = run_agent(user_input, thread_id=thread_id)
 
     # Log high-level outcome for monitoring
     logger.info(f"Intent: {result.get('plan', {}).get('intent')}")

@@ -78,7 +78,7 @@ def _fetch_tasks_filtered(
 # All functions return JSON strings as required by the MCP protocol.
 # ---------------------------------------------------------------------------
 
-def search_tasks(query: Optional[str] = None, owner: Optional[str] = None, status: Optional[str] = None) -> str:
+def search_tasks(query: Optional[str] = None, owner: Optional[str] = None, status: Optional[str] = None, project_id: Optional[str] = None) -> str:
     """Search active tasks in Postgres. All filters are optional — omit to return recent tasks."""
     conditions = ["is_active = TRUE"]
     params = []
@@ -93,6 +93,9 @@ def search_tasks(query: Optional[str] = None, owner: Optional[str] = None, statu
     if status:
         conditions.append("status = %s")
         params.append(status)
+    if project_id:
+        conditions.append("project_id = %s")
+        params.append(project_id)
 
     where = " AND ".join(conditions)
     sql = f"""
@@ -135,28 +138,44 @@ def get_task_by_id(task_id: str) -> str:
         return json.dumps({"error": str(e)})
 
 
-def create_task(task_text: str, owner: Optional[str] = None, deadline: Optional[str] = None, priority: str = "medium") -> str:
+def create_task(task_text: str, owner: Optional[str] = None, deadline: Optional[str] = None, priority: str = "medium", project_id: Optional[str] = None) -> str:
     """Insert a new task into Postgres. Use only for tasks the pipeline missed — pipeline handles bulk creation."""
-    # Validate priority — default to medium if caller passes an unrecognised value
     allowed_priorities = {"high", "medium", "low"}
     if priority not in allowed_priorities:
         priority = "medium"
 
-    # Normalize task text the same way the pipeline does — keeps dedup guard effective
     normalized = re.sub(r"[^\w\s]", "", task_text.lower().strip())
 
     try:
         conn = _get_conn()
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO tasks (task_text, normalized_task_text, owner, deadline, priority, status)
-                VALUES (%s, %s, %s, %s, %s, 'not_started')
+                INSERT INTO tasks (task_text, normalized_task_text, owner, deadline, priority, status, project_id)
+                VALUES (%s, %s, %s, %s, %s, 'not_started', %s)
                 RETURNING task_id
-            """, (task_text, normalized, owner or None, deadline or None, priority))
+            """, (task_text, normalized, owner or None, deadline or None, priority, project_id or None))
             task_id = str(cur.fetchone()[0])
         conn.commit()
         conn.close()
         return json.dumps({"task_id": task_id, "status": "created"})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+def list_projects() -> str:
+    """List all distinct project IDs that have active tasks in Postgres."""
+    try:
+        conn = _get_conn()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT DISTINCT project_id
+                FROM tasks
+                WHERE is_active = TRUE AND project_id IS NOT NULL
+                ORDER BY project_id
+            """)
+            projects = [row[0] for row in cur.fetchall()]
+        conn.close()
+        return json.dumps(projects)
     except Exception as e:
         return json.dumps({"error": str(e)})
 

@@ -20,7 +20,7 @@ from apps.db.db import (
     get_job,
 )
 from apps.logger import get_logger
-from mcp_server.tools.postgres import get_task_by_id, search_tasks, update_task_status
+from mcp_server.tools.postgres import get_task_by_id, list_projects, search_tasks, update_task_status
 
 load_dotenv()
 logger = get_logger("API")
@@ -158,15 +158,27 @@ def poll_job(job_id: str):
     return {"status": "running"}
 
 
+@app.get("/projects")
+def get_projects():
+    """List all distinct project IDs that have active tasks."""
+    import json
+    raw = list_projects()
+    data = json.loads(raw)
+    if isinstance(data, dict) and "error" in data:
+        raise HTTPException(status_code=500, detail=data["error"])
+    return {"projects": data}
+
+
 @app.get("/tasks")
 def list_tasks(
     query: Optional[str] = Query(None, description="Text search across task_text"),
     owner: Optional[str] = Query(None, description="Filter by owner name"),
     status: Optional[str] = Query(None, description="Filter by status"),
+    project_id: Optional[str] = Query(None, description="Filter by project ID"),
 ):
     """List active tasks with optional filters. Returns up to 20 results ordered by updated_at."""
     import json
-    raw = search_tasks(query=query, owner=owner, status=status)
+    raw = search_tasks(query=query, owner=owner, status=status, project_id=project_id)
     data = json.loads(raw)
 
     if isinstance(data, dict) and "error" in data:

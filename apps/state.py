@@ -31,3 +31,6 @@ class AgentState(TypedDict):
     # Iteration control
     max_iterations: int  # loop limit for refinement
     current_iteration: int  # current iteration count
+
+    # Project scoping — all DB reads/writes are filtered by this value
+    project_id: str

@@ -27,7 +27,7 @@ def get_connection():
 # Task writes
 # ---------------------------------------------------------------------------
 
-def insert_task(task):
+def insert_task(task, project_id: str = "default"):
     # Generate a 384-dim embedding before insert so the task is immediately
     # available for semantic similarity search in the match node
     embedding = get_embedding(task.get("task_text"))
@@ -45,8 +45,9 @@ def insert_task(task):
                 blocker,
                 priority,
                 subtasks,
-                task_embedding)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                task_embedding,
+                project_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING task_id
     """, (
         task.get("task_text"),
@@ -58,6 +59,7 @@ def insert_task(task):
         task.get("priority", "medium"),
         task.get("subtasks", []),
         embedding,
+        project_id,
     ))
 
     task_id = cur.fetchone()[0]
@@ -333,59 +335,52 @@ def cleanup_old_jobs(max_age_hours: int = 24):
 # Task reads
 # ---------------------------------------------------------------------------
 
-def fetch_task_by_normalized_text(normalized_text: str):
-    # Check if a task with this normalized text already exists in the DB.
-    # Used as a deduplication guard in store_tasks — prevents inserting the same
-    # task twice when LLM output varies slightly across runs.
+def fetch_task_by_normalized_text(normalized_text: str, project_id: str = "default"):
+    # Check if a task with this normalized text already exists in the DB for this project.
     conn = get_connection()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
             SELECT task_id
             FROM tasks
             WHERE normalized_task_text = %s
+              AND project_id = %s
               AND is_active = TRUE
             LIMIT 1
-        """, (normalized_text,))
+        """, (normalized_text, project_id))
         row = cur.fetchone()
     conn.close()
     return row["task_id"] if row else None
 
 
-def fetch_active_tasks():
-    # Fetch all active tasks for the match node to compare incoming events against.
-    # Returns all columns needed for exact, partial, and fuzzy matching.
-    # task_embedding is included here for completeness but semantic search uses
-    # fetch_semantic_task_match() with a vector query instead.
-    query = """
-        SELECT
-            task_id,
-            task_text,
-            normalized_task_text,
-            owner,
-            status,
-            deadline,
-            blocker,
-            task_embedding,
-            created_at,
-            updated_at
-        FROM tasks
-        WHERE is_active = TRUE
-        ORDER BY updated_at DESC, created_at DESC
-    """
-
+def fetch_active_tasks(project_id: str = "default"):
+    # Fetch active tasks scoped to this project for the match node.
     conn = get_connection()
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute(query)
+        cur.execute("""
+            SELECT
+                task_id,
+                task_text,
+                normalized_task_text,
+                owner,
+                status,
+                deadline,
+                blocker,
+                task_embedding,
+                created_at,
+                updated_at
+            FROM tasks
+            WHERE is_active = TRUE
+              AND project_id = %s
+            ORDER BY updated_at DESC, created_at DESC
+        """, (project_id,))
         rows = cur.fetchall()
 
+    conn.close()
     return [dict(row) for row in rows]
 
 
-def fetch_semantic_task_match(task_text: str):
-    # Find the closest active task using pgvector cosine similarity (<=> operator).
-    # Returns the single best match row with a similarity_score field,
-    # or None if no tasks exist or the input is empty.
-    # The match node applies a minimum threshold of 0.60 before accepting the result.
+def fetch_semantic_task_match(task_text: str, project_id: str = "default"):
+    # Find the closest active task within this project using pgvector cosine similarity.
     if not task_text:
         return None
 
@@ -409,10 +404,11 @@ def fetch_semantic_task_match(task_text: str):
                 1 - (task_embedding <=> %s::vector) AS similarity_score
             FROM tasks
             WHERE is_active = TRUE
+              AND project_id = %s
               AND task_embedding IS NOT NULL
             ORDER BY task_embedding <=> %s::vector
             LIMIT 1
-        """, (embedding, embedding))
+        """, (embedding, project_id, embedding))
 
         row = cur.fetchone()
 

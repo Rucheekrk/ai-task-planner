@@ -43,6 +43,7 @@ PIPELINE_INITIAL_STATE = {
     "final_output": {},
     "max_iterations": 5,
     "current_iteration": 0,
+    "project_id": "default",
 }
 
 
@@ -54,10 +55,10 @@ def _get_pipeline():
     return build_graph()
 
 
-def taskplanner_pipeline(input_text: str) -> Dict:
+def taskplanner_pipeline(input_text: str, project_id: str = "default") -> Dict:
     """Invoke the deterministic planning pipeline. Returns final_output dict."""
     pipeline = _get_pipeline()
-    initial_state = {**PIPELINE_INITIAL_STATE, "raw_input": input_text}
+    initial_state = {**PIPELINE_INITIAL_STATE, "raw_input": input_text, "project_id": project_id}
     result = pipeline.invoke(initial_state)
     return result.get("final_output", {})
 
@@ -74,6 +75,7 @@ class AgentSessionState(TypedDict):
     tool_results: List[Dict[str, Any]]   # results from the current execute cycle
     output: str                          # session summary (loaded as history on next run)
     iteration: int                       # ReAct loop counter
+    project_id: str                      # scopes pipeline DB reads/writes to this project
 
 
 # ---------------------------------------------------------------------------
@@ -334,7 +336,7 @@ def execute_node(state: AgentSessionState) -> AgentSessionState:
     if pipeline_call:
         input_text = pipeline_call.get("args", {}).get("input_text", state["input_text"])
         logger.info("Calling taskplanner_pipeline")
-        pipeline_output = taskplanner_pipeline(input_text)
+        pipeline_output = taskplanner_pipeline(input_text, project_id=state.get("project_id", "default"))
         tool_results.append({"tool": "taskplanner_pipeline", "result": pipeline_output})
         logger.info(
             f"Pipeline: {pipeline_output.get('tasks_count', 0)} tasks | "
@@ -492,6 +494,7 @@ def run_agent(input_text: str, thread_id: str = "default") -> Dict:
             "tool_results": [],
             "output": previous_output,
             "iteration": 0,
+            "project_id": thread_id,
         }
 
         agent = _build_agent_graph().compile(checkpointer=checkpointer)

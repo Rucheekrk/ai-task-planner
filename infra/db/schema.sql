@@ -14,6 +14,7 @@ CREATE TABLE tasks (
     subtasks TEXT[] DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     task_embedding vector(384),
+    project_id VARCHAR,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -22,6 +23,7 @@ CREATE TABLE tasks (
 -- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
 -- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS subtasks TEXT[] DEFAULT '{}';
 -- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_embedding vector(384);
+-- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS project_id VARCHAR;
 
 --Extracted Events table: Stores every extracted event from input
 CREATE TABLE task_events (

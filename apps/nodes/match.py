@@ -27,9 +27,10 @@ def task_match_node(state: AgentState) -> AgentState:
     logger.info("Running Match Node")
 
     normalized_events = state.get("normalized_events", [])
+    project_id = state.get("project_id", "default")
 
-    # Fetch existing tasks from the database
-    existing_tasks = fetch_active_tasks()
+    # Fetch existing tasks scoped to this project
+    existing_tasks = fetch_active_tasks(project_id)
 
     matched_events = []
 
@@ -117,7 +118,7 @@ def task_match_node(state: AgentState) -> AgentState:
         
         # Step 4: Semantic match using pgvector (only if no exact, partial or fuzzy match)
         if not best_match:
-            semantic_match = fetch_semantic_task_match(task_text)
+            semantic_match = fetch_semantic_task_match(task_text, project_id)
 
             if semantic_match:
                 score = semantic_match.get("similarity_score", 0)

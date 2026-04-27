@@ -114,9 +114,9 @@ def _refresh_task(task_id, task_data: dict):
 
 
 def store_tasks(state: AgentState):
-    logger.info(f"store_tasks called. events_to_create count = {len(state.get('events_to_create', []))}")  # debug function entry
-    # Insert only unmatched new tasks into tasks table
+    logger.info(f"store_tasks called. events_to_create count = {len(state.get('events_to_create', []))}")
     events_to_create = state.get("events_to_create", [])
+    project_id = state.get("project_id", "default")
 
     # Build lookup from prioritized_tasks by normalized task text
     priority_lookup = {
@@ -141,8 +141,8 @@ def store_tasks(state: AgentState):
                 "subtasks": enriched.get("subtasks", []),
             }
 
-            # Deduplication guard — exact normalized text match
-            existing_task_id = fetch_task_by_normalized_text(norm_text)
+            # Deduplication guard — exact normalized text match (scoped to project)
+            existing_task_id = fetch_task_by_normalized_text(norm_text, project_id)
             if existing_task_id:
                 logger.info(f"Dedup (exact): task already exists (task_id={existing_task_id}), skipping insert for '{task_data['task_text']}'")
                 event["matched_task_id"] = existing_task_id
@@ -153,9 +153,8 @@ def store_tasks(state: AgentState):
                 _refresh_task(existing_task_id, task_data)
                 continue
 
-            # Deduplication guard — semantic similarity fallback for same-SOW re-runs
-            # where the LLM phrases the same task slightly differently across runs
-            semantic_match = fetch_semantic_task_match(task_data["task_text"])
+            # Deduplication guard — semantic similarity fallback (scoped to project)
+            semantic_match = fetch_semantic_task_match(task_data["task_text"], project_id)
             if semantic_match and semantic_match.get("similarity_score", 0) >= 0.55:
                 existing_task_id = semantic_match["task_id"]
                 score = semantic_match["similarity_score"]
@@ -170,7 +169,7 @@ def store_tasks(state: AgentState):
 
             logger.info(f"Attempting to insert new task: {task_data['task_text']}")
             try:
-                task_id = insert_task(task_data)
+                task_id = insert_task(task_data, project_id)
                 logger.info(f"Inserted task successfully: {task_id}")
             except Exception as e:
                 logger.error(f"Task insert failed for '{task_data['task_text']}': {e}")
