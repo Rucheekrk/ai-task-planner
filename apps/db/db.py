@@ -177,6 +177,96 @@ def log_unresolved_event(event: dict, source_input: str = ""):
 
 
 # ---------------------------------------------------------------------------
+# Job store (agent_jobs table)
+# ---------------------------------------------------------------------------
+
+def ensure_jobs_table():
+    # Create agent_jobs if it doesn't exist yet.
+    # Called once at API startup so no manual migration is needed.
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS agent_jobs (
+            job_id UUID PRIMARY KEY,
+            status TEXT NOT NULL DEFAULT 'running',
+            result JSONB,
+            error TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_agent_jobs_created_at ON agent_jobs(created_at)
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def create_job(job_id: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO agent_jobs (job_id, status) VALUES (%s, 'running')",
+        (job_id,),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def complete_job(job_id: str, result: dict):
+    import json as _json
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE agent_jobs SET status = 'completed', result = %s WHERE job_id = %s",
+        (_json.dumps(result), job_id),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def fail_job(job_id: str, error: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE agent_jobs SET status = 'failed', error = %s WHERE job_id = %s",
+        (error, job_id),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def get_job(job_id: str):
+    conn = get_connection()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(
+            "SELECT job_id, status, result, error FROM agent_jobs WHERE job_id = %s",
+            (job_id,),
+        )
+        row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def cleanup_old_jobs(max_age_hours: int = 24):
+    # Delete completed/failed jobs older than max_age_hours to prevent unbounded table growth.
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "DELETE FROM agent_jobs WHERE created_at < NOW() - INTERVAL '%s hours'",
+        (max_age_hours,),
+    )
+    deleted = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return deleted
+
+
+# ---------------------------------------------------------------------------
 # Task reads
 # ---------------------------------------------------------------------------
 

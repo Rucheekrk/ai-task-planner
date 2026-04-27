@@ -342,8 +342,14 @@ def execute_node(state: AgentSessionState) -> AgentSessionState:
             f"unresolved={len(pipeline_output.get('unresolved_events', []))}"
         )
 
-    # Run MCP tools asynchronously
-    mcp_results = asyncio.run(_run_mcp_tools(tool_calls))
+    # Run MCP tools asynchronously in a fresh event loop.
+    # asyncio.run() raises RuntimeError if called from a thread that already has a running loop
+    # (common under FastAPI). Creating a new loop explicitly avoids that conflict.
+    loop = asyncio.new_event_loop()
+    try:
+        mcp_results = loop.run_until_complete(_run_mcp_tools(tool_calls))
+    finally:
+        loop.close()
     tool_results.extend(mcp_results)
 
     state["pipeline_output"] = pipeline_output

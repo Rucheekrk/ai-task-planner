@@ -1,12 +1,20 @@
 import threading
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 from apps.agent import run_agent
+from apps.db.db import (
+    cleanup_old_jobs,
+    complete_job,
+    create_job,
+    ensure_jobs_table,
+    fail_job,
+    get_job,
+)
 from apps.logger import get_logger
 from mcp_server.tools.postgres import get_task_by_id, search_tasks, update_task_status
 
@@ -24,25 +32,22 @@ app = FastAPI(
 )
 
 
-# ---------------------------------------------------------------------------
-# In-memory job store
-# ---------------------------------------------------------------------------
-
-_jobs: Dict[str, Dict] = {}
-_jobs_lock = threading.Lock()
+@app.on_event("startup")
+def _startup():
+    # Create agent_jobs table if it doesn't exist, then purge stale rows from previous runs.
+    ensure_jobs_table()
+    deleted = cleanup_old_jobs(max_age_hours=24)
+    if deleted:
+        logger.info(f"Startup cleanup: removed {deleted} stale job row(s)")
 
 
 def _run_agent_job(job_id: str, input_text: str, thread_id: str) -> None:
     try:
         result = run_agent(input_text, thread_id)
-        with _jobs_lock:
-            _jobs[job_id]["status"] = "completed"
-            _jobs[job_id]["result"] = result
+        complete_job(job_id, result)
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}")
-        with _jobs_lock:
-            _jobs[job_id]["status"] = "failed"
-            _jobs[job_id]["error"] = str(e)
+        fail_job(job_id, str(e))
 
 
 def _format_run_result(result: dict) -> dict:
@@ -87,8 +92,7 @@ def health():
 async def run(request: RunRequest):
     """Submit an agent run. Returns a job_id immediately; poll GET /jobs/{job_id} for results."""
     job_id = str(uuid.uuid4())
-    with _jobs_lock:
-        _jobs[job_id] = {"status": "running", "result": None, "error": None}
+    create_job(job_id)
 
     thread = threading.Thread(
         target=_run_agent_job,
@@ -101,10 +105,9 @@ async def run(request: RunRequest):
 
 
 @app.get("/jobs/{job_id}")
-def get_job(job_id: str):
+def poll_job(job_id: str):
     """Poll the status of an agent run. Returns status: running | completed | failed."""
-    with _jobs_lock:
-        job = _jobs.get(job_id)
+    job = get_job(job_id)
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")

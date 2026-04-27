@@ -155,8 +155,8 @@ def task_match_node(state: AgentState) -> AgentState:
             if force_match:
                 # ❗ update event but no match found → mark unresolved
                 event["is_matched"] = False
-                event["matched_method"] = "unresolved"
-                event["matched_confidence"] = "low"
+                event["match_method"] = "unresolved"
+                event["match_confidence"] = "low"
 
                 logger.warning(f"Unresolved update event: '{task_text}' (no matching task found)")
             else:
