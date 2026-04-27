@@ -72,6 +72,28 @@ CREATE TABLE unresolved_events (
 --     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 -- );
 
+-- Agent jobs table: persists async /run job state across restarts.
+-- Rows older than 24 hours are purged by the cleanup helper in db.py.
+CREATE TABLE IF NOT EXISTS agent_jobs (
+    job_id UUID PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'running',   -- running | completed | failed
+    result JSONB,
+    error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_jobs_created_at ON agent_jobs(created_at);
+
+-- Migration (run against an existing DB):
+-- CREATE TABLE IF NOT EXISTS agent_jobs (
+--     job_id UUID PRIMARY KEY,
+--     status TEXT NOT NULL DEFAULT 'running',
+--     result JSONB,
+--     error TEXT,
+--     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+-- CREATE INDEX IF NOT EXISTS idx_agent_jobs_created_at ON agent_jobs(created_at);
+
 CREATE INDEX idx_tasks_normalized_task_text ON tasks(normalized_task_text);
 CREATE INDEX idx_tasks_owner ON tasks(owner);
 CREATE INDEX idx_task_events_task_id ON task_events(task_id);

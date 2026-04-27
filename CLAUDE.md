@@ -23,7 +23,7 @@ LangGraph-Task-Agent/
 ├── docker-compose.yml             # PostgreSQL + pgvector container (port 5432)
 │
 ├── apps/
-│   ├── api.py                     # FastAPI app — POST /run, GET /tasks, GET /tasks/{id}, GET /health
+│   ├── api.py                     # FastAPI app — POST /run, GET /jobs/{job_id}, GET /tasks, PATCH /tasks/{id}, GET /health; startup creates agent_jobs table and purges stale rows
 │   ├── agent.py                   # Top-level ReAct agent — intent classification, tool routing
 │   ├── state.py                   # AgentState TypedDict — shared state across pipeline nodes
 │   ├── graph.py                   # LangGraph pipeline graph — nodes, edges, routers (no intent node)
@@ -43,7 +43,9 @@ LangGraph-Task-Agent/
 │   ├── db/
 │   │   └── db.py                  # PostgreSQL helpers: insert_task, insert_event,
 │   │                              #   update_task_field, update_task_subtasks,
-│   │                              #   fetch_active_tasks, fetch_semantic_task_match
+│   │                              #   fetch_active_tasks, fetch_semantic_task_match,
+│   │                              #   ensure_jobs_table, create_job, complete_job,
+│   │                              #   fail_job, get_job, cleanup_old_jobs
 │   │
 │   └── utils/
 │       ├── embeddings.py          # SentenceTransformer (all-MiniLM-L6-v2) → 384-dim vectors
@@ -74,7 +76,7 @@ LangGraph-Task-Agent/
 │   ├── input-sow-1.txt / input-sow-2.txt   # Statement-of-work style inputs
 │   └── input-test*.txt            # Targeted test inputs (abbreviations, priority)
 │
-├── infra/db/schema.sql            # PostgreSQL schema (tasks + task_events tables)
+├── infra/db/schema.sql            # PostgreSQL schema (tasks, task_events, unresolved_events, agent_jobs tables)
 └── logs/                          # Per-node log files (auto-created at runtime)
 ```
 
@@ -140,6 +142,11 @@ extract → normalize → match → decompose → prioritize → validate
 **`task_events` table** — immutable event log:
 - `event_id` (UUID PK), `task_id` (FK), `event_type`, `task_text`, `owner`, `status`, `deadline`, `blocker`, `dependency`, `match_method`, `match_confidence`, `source_input`, `created_at`
 
+**`agent_jobs` table** — persists async `/run` job state across API restarts:
+- `job_id` (UUID PK), `status` (running|completed|failed), `result` (JSONB), `error` (TEXT), `created_at`
+- Created automatically on API startup via `ensure_jobs_table()`. Rows older than 24 hours are purged on each startup via `cleanup_old_jobs()`.
+- Migration for existing DBs: see comments in `infra/db/schema.sql`
+
 **pgvector** is used for semantic similarity search. The `task_embedding` column stores 384-dim vectors from `all-MiniLM-L6-v2`. Run via Docker: `docker-compose up -d`
 
 ---
@@ -150,7 +157,7 @@ Four-step cascade per event:
 1. **Exact** — normalized text equality → `high` confidence
 2. **Partial** — substring containment (update events only) → `high` confidence
 3. **Fuzzy** — `SequenceMatcher` ratio. New tasks: threshold ≥ 0.75. Update events: ≥ 0.50
-4. **Semantic** — pgvector cosine similarity. Threshold ≥ 0.60. Score ≥ 0.85 = high, ≥ 0.70 = medium
+4. **Semantic** — pgvector cosine similarity. Threshold ≥ 0.55. Score ≥ 0.85 = high, ≥ 0.65 = medium
 
 `force_match=True` for all non-`new_task` event types (they must match an existing task). Unmatched update events → `unresolved_events`.
 
@@ -180,10 +187,9 @@ The LLM decides which node to revisit based on feedback:
 ## LLM + Config
 
 - **Model:** `gpt-4o-mini` via OpenAI API (`apps/llm.py`)
-- **Client:** `openai.OpenAI` using `client.responses.create()`
+- **Client:** pipeline uses `openai.OpenAI` via `client.chat.completions.create()` with `temperature=0` and `seed=42` for deterministic output; agent uses `ChatOpenAI` from `langchain-openai` with `temperature=0`
 - **API key:** set via `.env` as `OPENAI_API_KEY`
 - All pipeline LLM calls return parsed JSON
-- Agent makes one structured LLM call (intent classification + tool routing plan); full ReAct loop deferred
 
 **LLM call budget per run:**
 
@@ -220,9 +226,11 @@ uvicorn apps.api:app --host 0.0.0.0 --port 8000 --reload
 
 **FastAPI endpoints:**
 - `GET  /health` — liveness check
-- `POST /run` — run the agent: `{ "input_text": "...", "thread_id": "default" }`
+- `POST /run` — submit agent run (async); returns `{ job_id }` immediately
+- `GET  /jobs/{job_id}` — poll job status: `running | completed | failed`
 - `GET  /tasks` — list active tasks (query params: `query`, `owner`, `status`)
 - `GET  /tasks/{task_id}` — fetch a single task by UUID
+- `PATCH /tasks/{task_id}` — update a single field: `{ "field": "status", "value": "completed" }`
 
 Interactive docs available at `http://localhost:8000/docs` when the server is running.
 
@@ -291,6 +299,8 @@ Agent (apps/agent.py)
 | Pipeline | Extracted tasks, matched events, validation | In-process AgentState only |
 | MCP tools | Live task/event records | Postgres tasks/task_events tables |
 
+**MCP async execution:** MCP tools inside `execute_node` run via `asyncio.new_event_loop() / run_until_complete() / close()` rather than `asyncio.run()`. This avoids a `RuntimeError` when the calling thread (a FastAPI daemon thread) already has a running event loop.
+
 **Current state:** Custom ReAct loop — `plan → execute → observe → plan → ... → END` (max 3 iterations). Built manually using ChatOpenAI with accumulated message history. Agent observes tool results before deciding next actions. Not using `create_react_agent` (black box); the graph nodes are explicit and fully inspectable.
 
 ---
@@ -299,6 +309,8 @@ Agent (apps/agent.py)
 
 | Commit | What was done |
 |--------|--------------|
+| *(latest)* | **Bug fixes** — fixed `unresolved_events` always-empty bug (`matched_method` typo in `match.py`); fixed asyncio thread-safety in `execute_node` (explicit `new_event_loop` instead of `asyncio.run`); replaced in-memory job store with Postgres-backed `agent_jobs` table (persistent across restarts, 24-hour TTL cleanup on startup) |
+| `2db4da5` | **Non-determinism + dedup fixes** — remove LOW CONFIDENCE re-run signal; switch pipeline LLM calls to `chat.completions` with `temperature=0, seed=42`; lower semantic threshold to 0.55; semantic dedup fallback in `store_tasks`; async job pattern for `/run` with `GET /jobs/{job_id}` polling; Streamlit UI shows current-run tasks and full-DB board |
 | `c3d727e` | **Validation loop detection** — added `validation_history: List[str]` to state; validate node detects repeated feedback and forces `is_valid=True`; refine prompt gets `current_iteration`, `max_iterations`, `validation_history` for iteration-aware routing |
 | `2651c49` | **Abbreviation expansion + validator fix** — static `ABBREVIATION_MAP` utility with LLM fallback; fixed validator incorrectly flagging final-step tasks as priority errors; added prerequisite vs dependent priority rules to validate prompt |
 | `dd639f4` | **DB persistence fix** — persist priority and subtasks fields to DB; fixed pipeline and prompt bugs |
@@ -312,7 +324,7 @@ Agent (apps/agent.py)
 - `analytics module` task (from `input-2.txt`) is explicitly excluded by the extract prompt since Rahul said "no action item for now" — this is intentional.
 - `current_iteration` starts at `0` in `main.py` and is incremented at the top of `validate.py`, so the first validation run always shows `current_iteration: 1`.
 - The `pgvector` `embeddings.position_ids` warning at startup is harmless (known model load artifact from `sentence-transformers`).
-- `match.py` uses `unresolved` as `match_method` for update events with no DB match — check `unresolved_events` in state for these.
+- `match.py` sets `match_method = "unresolved"` on update events with no DB match; these are collected into `unresolved_events` in state and surfaced to the agent and API response.
 - `format.py` writes `source_input` (full transcript) into every `task_events` row — this is intentional for auditability but makes JSON output large.
 
 ---
