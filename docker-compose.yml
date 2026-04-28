@@ -11,10 +11,62 @@ services:
         ports:
             - "5432:5432"
         volumes:
-            - pgdata:/var/lib/postgressql/data
+            - pgdata:/var/lib/postgresql/data
             - ./infra/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+        restart: unless-stopped
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
+    mcp:
+        build: .
+        container_name: task_planner_mcp
+        env_file: .env
+        environment:
+            DB_HOST: postgres
+        ports:
+            - "8001:8001"
+        volumes:
+            - .:/app
+        depends_on:
+            postgres:
+                condition: service_healthy
+        command: python3 -m mcp_server.server
+        restart: unless-stopped
+
+    api:
+        build: .
+        container_name: task_planner_api
+        env_file: .env
+        environment:
+            DB_HOST: postgres
+            MCP_SERVER_URL: http://mcp:8001
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/app
+        depends_on:
+            postgres:
+                condition: service_healthy
+            mcp:
+                condition: service_started
+        command: uvicorn apps.api:app --host 0.0.0.0 --port 8000 --reload
+        restart: unless-stopped
+
+    ui:
+        build: .
+        container_name: task_planner_ui
+        env_file: .env
+        ports:
+            - "8501:8501"
+        volumes:
+            - .:/app
+        depends_on:
+            - api
+        command: streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0
         restart: unless-stopped
 
 volumes:
-    pgdata:  
-        
+    pgdata:
