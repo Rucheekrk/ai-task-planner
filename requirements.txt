@@ -74,6 +74,7 @@ langchain-mcp-adapters
 langchain-openai
 langgraph-checkpoint-postgres
 psycopg[binary]
+psycopg2-binary
 openpyxl
 google-auth
 google-api-python-client
