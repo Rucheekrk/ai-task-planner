@@ -160,8 +160,8 @@ def run_tests():
         runs = []
 
         for run_num in range(1, 3):
-            force = (run_num == 2)
-            label = "run 1 (normal)" if not force else "run 2 (force re-run)"
+            force = True
+            label = f"run {run_num} (force re-run)"
             print(f"\n  [{label}]")
 
             try:
@@ -280,7 +280,10 @@ def run_tests():
         print(f"  {r['sow_id']:<8} {len(ok_runs)}/2{'':<7} {avg_time:<12} {avg_match:<14} {con_score:<14} {isolated}")
 
     # Save full results
-    out = Path("test_results.json")
+    ts = time.strftime("%m-%d-%y_%H-%M-%S")
+    results_dir = Path(__file__).parent / "results"
+    results_dir.mkdir(exist_ok=True)
+    out = results_dir / f"test_results_{ts}.json"
     with open(out, "w") as f:
         json.dump({"timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"), "results": all_results, "isolation": isolation_results}, f, indent=2, default=str)
     print(f"\n  Full results saved → {out}")

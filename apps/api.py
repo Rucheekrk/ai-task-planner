@@ -43,9 +43,16 @@ def _startup():
     deleted = cleanup_old_jobs(max_age_hours=24)
     if deleted:
         logger.info(f"Startup cleanup: removed {deleted} stale job row(s)")
+    # Warm up the sentence transformer inside a ThreadPoolExecutor thread — the same
+    # execution context where the pipeline runs. PyTorch allocates thread-local memory
+    # on first use, so warming up here ensures it's ready before any real request arrives.
+    from apps.utils.embeddings import get_embedding
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(get_embedding, "warmup").result()
+    logger.info("Embedding model warmed up")
 
 
-MAX_JOB_SECONDS = 360  # 6 minutes — hard cap on total agent runtime
+MAX_JOB_SECONDS = 600  # 10 minutes — hard cap on total agent runtime
 
 
 def _run_agent_job(job_id: str, input_text: str, thread_id: str) -> None:
@@ -64,7 +71,8 @@ def _run_agent_job(job_id: str, input_text: str, thread_id: str) -> None:
         serializable = {k: v for k, v in result.items() if k != "messages"}
         complete_job(job_id, serializable)
         formatted = _format_run_result(serializable)
-        cache_pipeline_result(input_text, formatted)
+        if formatted.get("tasks_count", 0) > 0:
+            cache_pipeline_result(input_text, formatted)
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}")
         fail_job(job_id, str(e))

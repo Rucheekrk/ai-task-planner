@@ -1,0 +1,889 @@
+{
+  "timestamp": "2026-04-30T12:55:21",
+  "results": [
+    {
+      "sow_id": "sow-1",
+      "expected_task_count": 7,
+      "runs": [
+        {
+          "run": 1,
+          "status": "completed",
+          "elapsed": 55.6,
+          "tasks_count": 6,
+          "actual_tasks": [
+            "Install Red Hat Linux 5.0 on each server",
+            "Install WebSphere Application Server 6.1 on each Red Hat Linux server",
+            "Install Apache or IBM HTTP Server on each Red Hat Linux server",
+            "Configure plug-in in HTTP servers to forward requests to WebSphere Application Server",
+            "Apply fixpack(s) to WebSphere Application Server 6.1 on each Red Hat Linux server",
+            "Assist with tuning of WebSphere Application Server software"
+          ],
+          "comparison": {
+            "matched": [
+              {
+                "expected": "Install Redhat Linux 5.0 on each server",
+                "actual": "Install Red Hat Linux 5.0 on each server",
+                "score": 0.99
+              },
+              {
+                "expected": "Install WebSphere Application Server 6.1",
+                "actual": "Install WebSphere Application Server 6.1 on each Red Hat Linux server",
+                "score": 0.73
+              },
+              {
+                "expected": "Apply fixpacks to WebSphere Application Server",
+                "actual": "Apply fixpack(s) to WebSphere Application Server 6.1 on each Red Hat Linux server",
+                "score": 0.72
+              },
+              {
+                "expected": "Install Apache or IBM HTTP Server",
+                "actual": "Install Apache or IBM HTTP Server on each Red Hat Linux server",
+                "score": 0.69
+              },
+              {
+                "expected": "Assist with tuning WebSphere Application Server",
+                "actual": "Assist with tuning of WebSphere Application Server software",
+                "score": 0.89
+              }
+            ],
+            "missed": [
+              "Apply fixpacks to HTTP Server",
+              "Configure plugin to route HTTP requests to WAS"
+            ],
+            "extra": [
+              "Configure plug-in in HTTP servers to forward requests to WebSphere Application Server"
+            ],
+            "match_rate": 71.4
+          },
+          "validation": {
+            "passed": true,
+            "iterations": 1,
+            "hit_max_iterations": false,
+            "final_feedback": "The task plan is clear, well-structured, and the priorities are reasonable based on execution order."
+          },
+          "from_cache": false
+        },
+        {
+          "run": 2,
+          "status": "completed",
+          "elapsed": 55.5,
+          "tasks_count": 6,
+          "actual_tasks": [
+            "Install Red Hat Linux 5.0 on each server",
+            "Install WebSphere Application Server 6.1 on each Red Hat Linux server",
+            "Install Apache or IBM HTTP Server on each Red Hat Linux server",
+            "Configure plug-in in HTTP servers to forward requests to WebSphere Application Server",
+            "Apply fixpack(s) to WebSphere Application Server 6.1 on each Red Hat Linux server",
+            "Assist with tuning of WebSphere Application Server software"
+          ],
+          "comparison": {
+            "matched": [
+              {
+                "expected": "Install Redhat Linux 5.0 on each server",
+                "actual": "Install Red Hat Linux 5.0 on each server",
+                "score": 0.99
+              },
+              {
+                "expected": "Install WebSphere Application Server 6.1",
+                "actual": "Install WebSphere Application Server 6.1 on each Red Hat Linux server",
+                "score": 0.73
+              },
+              {
+                "expected": "Apply fixpacks to WebSphere Application Server",
+                "actual": "Apply fixpack(s) to WebSphere Application Server 6.1 on each Red Hat Linux server",
+                "score": 0.72
+              },
+              {
+                "expected": "Install Apache or IBM HTTP Server",
+                "actual": "Install Apache or IBM HTTP Server on each Red Hat Linux server",
+                "score": 0.69
+              },
+              {
+                "expected": "Assist with tuning WebSphere Application Server",
+                "actual": "Assist with tuning of WebSphere Application Server software",
+                "score": 0.89
+              }
+            ],
+            "missed": [
+              "Apply fixpacks to HTTP Server",
+              "Configure plugin to route HTTP requests to WAS"
+            ],
+            "extra": [
+              "Configure plug-in in HTTP servers to forward requests to WebSphere Application Server"
+            ],
+            "match_rate": 71.4
+          },
+          "validation": {
+            "passed": true,
+            "iterations": 1,
+            "hit_max_iterations": false,
+            "final_feedback": "The task plan is clear, well-structured, and priorities are reasonable based on execution order."
+          },
+          "from_cache": false
+        }
+      ],
+      "consistency": {
+        "score": 100.0,
+        "same_count": true,
+        "added_in_run2": [],
+        "removed_in_run2": []
+      }
+    },
+    {
+      "sow_id": "sow-2",
+      "expected_task_count": 6,
+      "runs": [
+        {
+          "run": 1,
+          "status": "completed",
+          "elapsed": 237.2,
+          "tasks_count": 22,
+          "actual_tasks": [
+            "Initiate and plan project",
+            "Conduct project kickoff meeting",
+            "Execute vRealize Automation assessment",
+            "Design and implement VMware vRealize Automation",
+            "Develop vRealize Automation for DEV / TEST / PROD",
+            "Validate vRealize Automation",
+            "Conduct knowledge transfer",
+            "Conduct knowledge transfer sessions covering design, implementation, and operational considerations",
+            "Provide knowledge of the vRealize Automation Platform",
+            "Provide knowledge of what a Multi-machine Cloud Template is",
+            "Provide knowledge of how to add version integration to vRealize Automation",
+            "Provide knowledge of how to leverage various workflows used to build, place, configure and destroy VMs in the Cloud",
+            "Validate all Workflows and Blueprints",
+            "Run tests for deployments and validate in test environment",
+            "Build out initial workflows",
+            "Build out initial blueprints and custom forms",
+            "Run post deployment customization, naming, OU placement as needed",
+            "Iterate as needed until processes are completed",
+            "Review current on-prem vRealize Automation platform",
+            "Validate all endpoint and 3rd party tools, plugin, or scripts",
+            "Design all new vRealize Automation Workflows, Blueprints, and workflows",
+            "Ensure any necessary integrations are configured and tested"
+          ],
+          "comparison": {
+            "matched": [
+              {
+                "expected": "Initiate and plan project",
+                "actual": "Initiate and plan project",
+                "score": 1.0
+              },
+              {
+                "expected": "Assess current vRealize Automation environment",
+                "actual": "Execute vRealize Automation assessment",
+                "score": 0.71
+              },
+              {
+                "expected": "Design and implement VMware Aria Automation solution",
+                "actual": "Design and implement VMware vRealize Automation",
+                "score": 0.83
+              },
+              {
+                "expected": "Develop automation workflows and blueprints for DEV/TEST/PROD",
+                "actual": "Develop vRealize Automation for DEV / TEST / PROD",
+                "score": 0.65
+              },
+              {
+                "expected": "Validate automation workflows and deployments",
+                "actual": "Validate all Workflows and Blueprints",
+                "score": 0.73
+              },
+              {
+                "expected": "Perform knowledge transfer sessions",
+                "actual": "Conduct knowledge transfer",
+                "score": 0.66
+              }
+            ],
+            "missed": [],
+            "extra": [
+              "Conduct project kickoff meeting",
+              "Validate vRealize Automation",
+              "Conduct knowledge transfer sessions covering design, implementation, and operational considerations",
+              "Provide knowledge of the vRealize Automation Platform",
+              "Provide knowledge of what a Multi-machine Cloud Template is",
+              "Provide knowledge of how to add version integration to vRealize Automation",
+              "Provide knowledge of how to leverage various workflows used to build, place, configure and destroy VMs in the Cloud",
+              "Run tests for deployments and validate in test environment",
+              "Build out initial workflows",
+              "Build out initial blueprints and custom forms",
+              "Run post deployment customization, naming, OU placement as needed",
+              "Iterate as needed until processes are completed",
+              "Review current on-prem vRealize Automation platform",
+              "Validate all endpoint and 3rd party tools, plugin, or scripts",
+              "Design all new vRealize Automation Workflows, Blueprints, and workflows",
+              "Ensure any necessary integrations are configured and tested"
+            ],
+            "match_rate": 100.0
+          },
+          "validation": {
+            "passed": true,
+            "iterations": 3,
+            "hit_max_iterations": false,
+            "final_feedback": "The task plan is clear, well-structured, and priorities are logical. All tasks and subtasks are actionable and relevant."
+          },
+          "from_cache": false
+        },
+        {
+          "run": 2,
+          "status": "completed",
+          "elapsed": 252.9,
+          "tasks_count": 23,
+          "actual_tasks": [
+            "Initiate and plan project",
+            "Conduct project kickoff meeting",
+            "Execute vRealize Automation assessment",
+            "Design VMware vRA (Aria)",
+            "Implement VMware vRA (Aria)",
+            "Develop vRA (Aria) automation for DEV / TEST / PROD",
+            "Validate vRA (Aria) automation",
+            "Conduct knowledge transfer",
+            "Conduct knowledge transfer sessions covering design, implementation, and operational considerations",
+            "Provide knowledge of the vRA (Aria) Platform",
+            "Provide knowledge of what a Multi-machine Cloud Template is",
+            "Provide knowledge of how to add version integration to vRA (Aria)",
+            "Provide knowledge of how to leverage various workflows used to build, place, configure and destroy VMs in the Cloud",
+            "Validate all Workflows and Blueprints",
+            "Run tests for deployments and validate in test environment",
+            "Build out initial workflows",
+            "Build out initial blueprints and custom forms",
+            "Run post deployment customization, naming, OU placement as needed",
+            "Iterate as needed until processes are completed",
+            "Review current on-prem vRA Automation platform",
+            "Validate all endpoint and 3rd party tools, plugin, or scripts",
+            "Design all new vRA (Aria) Workflows, Blueprints, and workflows",
+            "Ensure any necessary integrations are configured and tested"
+          ],
+          "comparison": {
+            "matched": [
+              {
+                "expected": "Initiate and plan project",
+                "actual": "Initiate and plan project",
+                "score": 1.0
+              },
+              {
+                "expected": "Assess current vRealize Automation environment",
+                "actual": "Execute vRealize Automation assessment",
+                "score": 0.71
+              },
+              {
+                "expected": "Develop automation workflows and blueprints for DEV/TEST/PROD",
+                "actual": "Develop vRA (Aria) automation for DEV / TEST / PROD",
+                "score": 0.64
+              },
+              {
+                "expected": "Validate automation workflows and deployments",
+                "actual": "Validate all Workflows and Blueprints",
+                "score": 0.73
+              },
+              {
+                "expected": "Perform knowledge transfer sessions",
+                "actual": "Conduct knowledge transfer",
+                "score": 0.66
+              }
+            ],
+            "missed": [
+              "Design and implement VMware Aria Automation solution"
+            ],
+            "extra": [
+              "Conduct project kickoff meeting",
+              "Design VMware vRA (Aria)",
+              "Implement VMware vRA (Aria)",
+              "Validate vRA (Aria) automation",
+              "Conduct knowledge transfer sessions covering design, implementation, and operational considerations",
+              "Provide knowledge of the vRA (Aria) Platform",
+              "Provide knowledge of what a Multi-machine Cloud Template is",
+              "Provide knowledge of how to add version integration to vRA (Aria)",
+              "Provide knowledge of how to leverage various workflows used to build, place, configure and destroy VMs in the Cloud",
+              "Run tests for deployments and validate in test environment",
+              "Build out initial workflows",
+              "Build out initial blueprints and custom forms",
+              "Run post deployment customization, naming, OU placement as needed",
+              "Iterate as needed until processes are completed",
+              "Review current on-prem vRA Automation platform",
+              "Validate all endpoint and 3rd party tools, plugin, or scripts",
+              "Design all new vRA (Aria) Workflows, Blueprints, and workflows",
+              "Ensure any necessary integrations are configured and tested"
+            ],
+            "match_rate": 83.3
+          },
+          "validation": {
+            "passed": true,
+            "iterations": 1,
+            "hit_max_iterations": false,
+            "final_feedback": "The task plan is clear, well-structured, and priorities are reasonable. All tasks and subtasks are actionable and relevant."
+          },
+          "from_cache": false
+        }
+      ],
+      "consistency": {
+        "score": 65.2,
+        "same_count": false,
+        "added_in_run2": [
+          "Design VMware vRA (Aria)",
+          "Implement VMware vRA (Aria)",
+          "Develop vRA (Aria) automation for DEV / TEST / PROD",
+          "Validate vRA (Aria) automation",
+          "Provide knowledge of the vRA (Aria) Platform",
+          "Provide knowledge of how to add version integration to vRA (Aria)",
+          "Review current on-prem vRA Automation platform",
+          "Design all new vRA (Aria) Workflows, Blueprints, and workflows"
+        ],
+        "removed_in_run2": [
+          "Design and implement VMware vRealize Automation",
+          "Develop vRealize Automation for DEV / TEST / PROD",
+          "Validate vRealize Automation",
+          "Provide knowledge of the vRealize Automation Platform",
+          "Provide knowledge of how to add version integration to vRealize Automation",
+          "Review current on-prem vRealize Automation platform",
+          "Design all new vRealize Automation Workflows, Blueprints, and workflows"
+        ]
+      }
+    },
+    {
+      "sow_id": "sow-3",
+      "expected_task_count": 7,
+      "runs": [
+        {
+          "run": 1,
+          "status": "completed",
+          "elapsed": 222.1,
+          "tasks_count": 31,
+          "actual_tasks": [
+            "Enable continuous integration and deployment",
+            "Design and implement all infrastructure necessary to support VMware vRealize deployment",
+            "Automate workload provisioning",
+            "Get started with VMware Aria Automation for automated workload provisioning",
+            "Get started with VMware Aria Automation for self-service catalogue and deployment model",
+            "Provide a self-service portal for IT users",
+            "Provide knowledge of the vRA (Aria) Platform",
+            "Execute assessment of the current environment and evaluate readiness for Aria Automation",
+            "Execute solution design through workshops and consultation",
+            "Execute deployment and verification of the solution",
+            "Execute knowledge transfer of the design, deployment, and operations procedures",
+            "Conduct project initiation call with key stakeholders",
+            "Lead project kickoff meeting with Customer project sponsors and stakeholders",
+            "Conduct vRealize Automation Design Workshop",
+            "Review current workflows and blueprints",
+            "Review Windows Virtual Machine build and deployment process",
+            "Validate vRealize Automation environment",
+            "Document the configuration of vRealize Automation",
+            "Provide knowledge of how to leverage various workflows in vRA (Aria)",
+            "Provide secure, remote access to Customer systems",
+            "Maintain current support agreements with product vendors",
+            "Make appropriate system maintenance window(s) available for Provider",
+            "Support and provide representation at project review meetings",
+            "Notify all stakeholders of any changes to the project",
+            "Actively participate in the engagement with relevant domain experts",
+            "Provide necessary resources to develop workflows, scripts, and automated processes",
+            "Execute the vRA Migration",
+            "Validate project expectations and clarify roles and responsibilities",
+            "Install agents",
+            "Deprovision server",
+            "Leverage advanced automation for VMware Aria Automation post-deployment configuration"
+          ],
+          "comparison": {
+            "matched": [
+              {
+                "expected": "Validate vRA (Aria) automation workflows and blueprints",
+                "actual": "Validate vRealize Automation environment",
+                "score": 0.63
+              },
+              {
+                "expected": "Finalize documentation of vRealize Automation configuration",
+                "actual": "Document the configuration of vRealize Automation",
+                "score": 0.67
+              }
+            ],
+            "missed": [
+              "Initiate and plan project",
+              "Execute Aria Automation assessment",
+              "Design and implement VMware Aria Automation",
+              "Develop vRA (Aria) automation workflows and blueprints for DEV/TEST/PROD",
+              "Conduct knowledge transfer"
+            ],
+            "extra": [
+              "Enable continuous integration and deployment",
+              "Design and implement all infrastructure necessary to support VMware vRealize deployment",
+              "Automate workload provisioning",
+              "Get started with VMware Aria Automation for automated workload provisioning",
+              "Get started with VMware Aria Automation for self-service catalogue and deployment model",
+              "Provide a self-service portal for IT users",
+              "Provide knowledge of the vRA (Aria) Platform",
+              "Execute assessment of the current environment and evaluate readiness for Aria Automation",
+              "Execute solution design through workshops and consultation",
+              "Execute deployment and verification of the solution",
+              "Execute knowledge transfer of the design, deployment, and operations procedures",
+              "Conduct project initiation call with key stakeholders",
+              "Lead project kickoff meeting with Customer project sponsors and stakeholders",
+              "Conduct vRealize Automation Design Workshop",
+              "Review current workflows and blueprints",
+              "Review Windows Virtual Machine build and deployment process",
+              "Provide knowledge of how to leverage various workflows in vRA (Aria)",
+              "Provide secure, remote access to Customer systems",
+              "Maintain current support agreements with product vendors",
+              "Make appropriate system maintenance window(s) available for Provider",
+              "Support and provide representation at project review meetings",
+              "Notify all stakeholders of any changes to the project",
+              "Actively participate in the engagement with relevant domain experts",
+              "Provide necessary resources to develop workflows, scripts, and automated processes",
+              "Execute the vRA Migration",
+              "Validate project expectations and clarify roles and responsibilities",
+              "Install agents",
+              "Deprovision server",
+              "Leverage advanced automation for VMware Aria Automation post-deployment configuration"
+            ],
+            "match_rate": 28.6
+          },
+          "validation": {
+            "passed": true,
+            "iterations": 1,
+            "hit_max_iterations": false,
+            "final_feedback": "The task plan is clear, well-structured, and priorities are reasonable. All tasks are actionable with relevant subtasks."
+          },
+          "from_cache": false
+        },
+        {
+          "run": 2,
+          "status": "completed",
+          "elapsed": 277.1,
+          "tasks_count": 34,
+          "actual_tasks": [
+            "Enable continuous integration and deployment",
+            "Design and implement all infrastructure necessary to support VMware vRealize deployment",
+            "Get started with VMware Aria Automation for automated workload provisioning",
+            "Get started with VMware Aria Automation for self-service catalogue and deployment model",
+            "Assist with the development of the Customer's capability to automate workload provisioning",
+            "Build automation for Windows 2019 and 2022 Servers / Linux vRA (Aria)",
+            "Leverage advanced automation for VMware Aria Automation post-deployment configuration",
+            "Confirm prerequisites are met as detailed in the solution checklist",
+            "Execute assessment to evaluate readiness for Aria Automation",
+            "Execute solution design through workshops and consultation",
+            "Execute deployment and verification of the solution",
+            "Execute knowledge transfer of design, deployment, and operations procedures",
+            "Initiate and plan project with key Customer and Provider stakeholders",
+            "Host project kickoff meeting with Customer project sponsors and stakeholders",
+            "Review project goals, phases, and key dates",
+            "Validate project expectations and clarify roles and responsibilities",
+            "Conduct design workshop to gather requirements for vRealize Automation environment",
+            "Review current workflows and blueprints",
+            "Review Windows Virtual Machine build and deployment process",
+            "Review and assess current licensing and configuration state of vRA",
+            "Develop vRealize Automation Cloud workflows and blueprints for DEV / TEST / PROD",
+            "Finalize documentation of vRealize Automation configuration",
+            "Conduct workshops for service catalog management, custom forms, actions, and subscriptions",
+            "Provide knowledge transfer of the vRA (Aria) platform",
+            "Provide secure, remote access to Customer systems",
+            "Maintain current support agreements with product vendors",
+            "Make appropriate system maintenance windows available for Provider",
+            "Support and provide representation at project review meetings",
+            "Notify all stakeholders of any changes to the project",
+            "Install Agents including Centrify, Microsoft Defender, Rapid7, Azure ARC, SolarWinds (Linux Only), MECM (Windows Only), Foreman/Katello",
+            "Deprovision Server including shut down, set Virtual Machine to 'unmanaged' in Solar Winds, power down Virtual Machine, full decommission, and remove Virtual Machine from various systems",
+            "Notify Data Protection Team of release/data destruction",
+            "Notify Security Team for removal of Firewalls",
+            "Execute the vRA Migration"
+          ],
+          "comparison": {
+            "matched": [
+              {
+                "expected": "Develop vRA (Aria) automation workflows and blueprints for DEV/TEST/PROD",
+                "actual": "Develop vRealize Automation Cloud workflows and blueprints for DEV / TEST / PROD",
+                "score": 0.87
+              },
+              {
+                "expected": "Finalize documentation of vRealize Automation configuration",
+                "actual": "Finalize documentation of vRealize Automation configuration",
+                "score": 1.0
+              }
+            ],
+            "missed": [
+              "Initiate and plan project",
+              "Execute Aria Automation assessment",
+              "Design and implement VMware Aria Automation",
+              "Validate vRA (Aria) automation workflows and blueprints",
+              "Conduct knowledge transfer"
+            ],
+            "extra": [
+              "Enable continuous integration and deployment",
+              "Design and implement all infrastructure necessary to support VMware vRealize deployment",
+              "Get started with VMware Aria Automation for automated workload provisioning",
+              "Get started with VMware Aria Automation for self-service catalogue and deployment model",
+              "Assist with the development of the Customer's capability to automate workload provisioning",
+              "Build automation for Windows 2019 and 2022 Servers / Linux vRA (Aria)",
+              "Leverage advanced automation for VMware Aria Automation post-deployment configuration",
+              "Confirm prerequisites are met as detailed in the solution checklist",
+              "Execute assessment to evaluate readiness for Aria Automation",
+              "Execute solution design through workshops and consultation",
+              "Execute deployment and verification of the solution",
+              "Execute knowledge transfer of design, deployment, and operations procedures",
+              "Initiate and plan project with key Customer and Provider stakeholders",
+              "Host project kickoff meeting with Customer project sponsors and stakeholders",
+              "Review project goals, phases, and key dates",
+              "Validate project expectations and clarify roles and responsibilities",
+              "Conduct design workshop to gather requirements for vRealize Automation environment",
+              "Review current workflows and blueprints",
+              "Review Windows Virtual Machine build and deployment process",
+              "Review and assess current licensing and configuration state of vRA",
+              "Conduct workshops for service catalog management, custom forms, actions, and subscriptions",
+              "Provide knowledge transfer of the vRA (Aria) platform",
+              "Provide secure, remote access to Customer systems",
+              "Maintain current support agreements with product vendors",
+              "Make appropriate system maintenance windows available for Provider",
+              "Support and provide representation at project review meetings",
+              "Notify all stakeholders of any changes to the project",
+              "Install Agents including Centrify, Microsoft Defender, Rapid7, Azure ARC, SolarWinds (Linux Only), MECM (Windows Only), Foreman/Katello",
+              "Deprovision Server including shut down, set Virtual Machine to 'unmanaged' in Solar Winds, power down Virtual Machine, full decommission, and remove Virtual Machine from various systems",
+              "Notify Data Protection Team of release/data destruction",
+              "Notify Security Team for removal of Firewalls",
+              "Execute the vRA Migration"
+            ],
+            "match_rate": 28.6
+          },
+          "validation": {
+            "passed": true,
+            "iterations": 1,
+            "hit_max_iterations": false,
+            "final_feedback": "The task plan is clear, well-structured, and priorities are reasonable. All tasks are actionable with appropriate subtasks."
+          },
+          "from_cache": false
+        }
+      ],
+      "consistency": {
+        "score": 44.1,
+        "same_count": false,
+        "added_in_run2": [
+          "Assist with the development of the Customer's capability to automate workload provisioning",
+          "Build automation for Windows 2019 and 2022 Servers / Linux vRA (Aria)",
+          "Confirm prerequisites are met as detailed in the solution checklist",
+          "Execute assessment to evaluate readiness for Aria Automation",
+          "Execute knowledge transfer of design, deployment, and operations procedures",
+          "Initiate and plan project with key Customer and Provider stakeholders",
+          "Host project kickoff meeting with Customer project sponsors and stakeholders",
+          "Review project goals, phases, and key dates",
+          "Conduct design workshop to gather requirements for vRealize Automation environment",
+          "Review and assess current licensing and configuration state of vRA",
+          "Develop vRealize Automation Cloud workflows and blueprints for DEV / TEST / PROD",
+          "Finalize documentation of vRealize Automation configuration",
+          "Conduct workshops for service catalog management, custom forms, actions, and subscriptions",
+          "Provide knowledge transfer of the vRA (Aria) platform",
+          "Make appropriate system maintenance windows available for Provider",
+          "Install Agents including Centrify, Microsoft Defender, Rapid7, Azure ARC, SolarWinds (Linux Only), MECM (Windows Only), Foreman/Katello",
+          "Deprovision Server including shut down, set Virtual Machine to 'unmanaged' in Solar Winds, power down Virtual Machine, full decommission, and remove Virtual Machine from various systems",
+          "Notify Data Protection Team of release/data destruction",
+          "Notify Security Team for removal of Firewalls"
+        ],
+        "removed_in_run2": [
+          "Automate workload provisioning",
+          "Provide a self-service portal for IT users",
+          "Provide knowledge of the vRA (Aria) Platform",
+          "Execute assessment of the current environment and evaluate readiness for Aria Automation",
+          "Execute knowledge transfer of the design, deployment, and operations procedures",
+          "Conduct project initiation call with key stakeholders",
+          "Lead project kickoff meeting with Customer project sponsors and stakeholders",
+          "Conduct vRealize Automation Design Workshop",
+          "Validate vRealize Automation environment",
+          "Document the configuration of vRealize Automation",
+          "Provide knowledge of how to leverage various workflows in vRA (Aria)",
+          "Make appropriate system maintenance window(s) available for Provider",
+          "Actively participate in the engagement with relevant domain experts",
+          "Provide necessary resources to develop workflows, scripts, and automated processes",
+          "Install agents",
+          "Deprovision server"
+        ]
+      }
+    },
+    {
+      "sow_id": "sow-4",
+      "expected_task_count": 18,
+      "runs": [
+        {
+          "run": 1,
+          "status": "completed",
+          "elapsed": 136.2,
+          "tasks_count": 21,
+          "actual_tasks": [
+            "Deploy and configure relevant TVS modules for the environment",
+            "Setup integrations with NSX-T and other Aria products",
+            "Integrate IPAM with Infoblox BloxOne DDI",
+            "Build Windows server virtual machine deployment blueprint",
+            "Complete VCF brownfield migration",
+            "Add physical network infrastructure",
+            "Create process to address virtual machines with low disk space",
+            "Create two multi-tiered application monitoring dashboards",
+            "Configure cost reporting",
+            "Approve materials and services provided by Seller",
+            "Manage all communications with Seller",
+            "Communicate any objections to an invoice within fifteen days",
+            "Create service catalog",
+            "Implement Freshservice ITSM integration",
+            "Confirm if we can migrate non-VCF managed hosts and NSX environment into VCF",
+            "Configure two multi-tiered applications for discovery",
+            "Conduct kickoff meeting to review SOW and project objectives",
+            "Develop milestone project schedule",
+            "Act as point of contact for changes or escalations during the project",
+            "Recap project activities and formally close the project",
+            "Appoint a contact person for communication"
+          ],
+          "comparison": {
+            "matched": [
+              {
+                "expected": "Deploy and configure Aria Operations environment",
+                "actual": "Deploy and configure relevant TVS modules for the environment",
+                "score": 0.68
+              },
+              {
+                "expected": "Set up integrations with NSX-T and other Aria products",
+                "actual": "Setup integrations with NSX-T and other Aria products",
+                "score": 0.99
+              },
+              {
+                "expected": "Create multi-tiered application monitoring dashboards",
+                "actual": "Create two multi-tiered application monitoring dashboards",
+                "score": 0.96
+              },
+              {
+                "expected": "Configure cost reporting",
+                "actual": "Configure cost reporting",
+                "score": 1.0
+              },
+              {
+                "expected": "Create process to address VMs with low disk space",
+                "actual": "Create process to address virtual machines with low disk space",
+                "score": 0.88
+              },
+              {
+                "expected": "Implement IPAM integration with Infoblox BloxOne DDI",
+                "actual": "Integrate IPAM with Infoblox BloxOne DDI",
+                "score": 0.76
+              },
+              {
+                "expected": "Build Windows server VM deployment blueprint",
+                "actual": "Build Windows server virtual machine deployment blueprint",
+                "score": 0.87
+              },
+              {
+                "expected": "Create Service Catalog",
+                "actual": "Create service catalog",
+                "score": 1.0
+              },
+              {
+                "expected": "Implement Freshservice ITSM integration",
+                "actual": "Implement Freshservice ITSM integration",
+                "score": 1.0
+              },
+              {
+                "expected": "Assess feasibility of migrating non-VCF managed hosts and NSX environment into VCF",
+                "actual": "Confirm if we can migrate non-VCF managed hosts and NSX environment into VCF",
+                "score": 0.75
+              },
+              {
+                "expected": "Complete VCF brownfield migration",
+                "actual": "Complete VCF brownfield migration",
+                "score": 1.0
+              },
+              {
+                "expected": "Add physical network infrastructure to Aria Operations for Networks",
+                "actual": "Add physical network infrastructure",
+                "score": 0.69
+              },
+              {
+                "expected": "Configure multi-tiered application discovery",
+                "actual": "Configure two multi-tiered applications for discovery",
+                "score": 0.91
+              }
+            ],
+            "missed": [
+              "Deploy and configure TVS modules",
+              "Deploy and configure Aria Automation environment",
+              "Build Windows server VM decommission blueprint",
+              "Execute remediation steps to prepare for VCF brownfield migration",
+              "Review architecture and clean up existing Aria Operations for Networks environment"
+            ],
+            "extra": [
+              "Approve materials and services provided by Seller",
+              "Manage all communications with Seller",
+              "Communicate any objections to an invoice within fifteen days",
+              "Conduct kickoff meeting to review SOW and project objectives",
+              "Develop milestone project schedule",
+              "Act as point of contact for changes or escalations during the project",
+              "Recap project activities and formally close the project",
+              "Appoint a contact person for communication"
+            ],
+            "match_rate": 72.2
+          },
+          "validation": {
+            "passed": true,
+            "iterations": 1,
+            "hit_max_iterations": false,
+            "final_feedback": "The task plan is clear, well-structured, and the priorities are reasonable. All tasks are actionable with appropriate subtasks."
+          },
+          "from_cache": false
+        },
+        {
+          "run": 2,
+          "status": "completed",
+          "elapsed": 131.1,
+          "tasks_count": 22,
+          "actual_tasks": [
+            "Deploy and configure relevant TVS modules",
+            "Setup integrations with NSX-T and other Aria products",
+            "Create two multi-tiered application monitoring dashboards",
+            "Configure cost reporting",
+            "Create process to address virtual machines with low disk space",
+            "Integrate IP Address Management with Infoblox BloxOne DDI",
+            "Build Windows server virtual machine deployment blueprint",
+            "Create service catalog",
+            "Implement Freshservice IT Service Management integration",
+            "Confirm migration of non-VCF managed hosts and NSX environment into VCF",
+            "Complete VCF brownfield migration",
+            "Review architecture, health check and cleanup of existing environment",
+            "Add physical network infrastructure",
+            "Configure two multi-tiered applications for discovery",
+            "Conduct kickoff meeting to review SOW and project objectives",
+            "Develop milestone project schedule",
+            "Act as point of contact for changes or escalations during the project",
+            "Recap project activities and formally close the project",
+            "Appoint a contact person for communication",
+            "Approve materials and services provided by Seller",
+            "Manage all communications with Seller",
+            "Communicate any objections to an invoice within fifteen days"
+          ],
+          "comparison": {
+            "matched": [
+              {
+                "expected": "Deploy and configure Aria Operations environment",
+                "actual": "Deploy and configure relevant TVS modules",
+                "score": 0.61
+              },
+              {
+                "expected": "Set up integrations with NSX-T and other Aria products",
+                "actual": "Setup integrations with NSX-T and other Aria products",
+                "score": 0.99
+              },
+              {
+                "expected": "Create multi-tiered application monitoring dashboards",
+                "actual": "Create two multi-tiered application monitoring dashboards",
+                "score": 0.96
+              },
+              {
+                "expected": "Configure cost reporting",
+                "actual": "Configure cost reporting",
+                "score": 1.0
+              },
+              {
+                "expected": "Create process to address VMs with low disk space",
+                "actual": "Create process to address virtual machines with low disk space",
+                "score": 0.88
+              },
+              {
+                "expected": "Implement IPAM integration with Infoblox BloxOne DDI",
+                "actual": "Integrate IP Address Management with Infoblox BloxOne DDI",
+                "score": 0.66
+              },
+              {
+                "expected": "Build Windows server VM deployment blueprint",
+                "actual": "Build Windows server virtual machine deployment blueprint",
+                "score": 0.87
+              },
+              {
+                "expected": "Create Service Catalog",
+                "actual": "Create service catalog",
+                "score": 1.0
+              },
+              {
+                "expected": "Implement Freshservice ITSM integration",
+                "actual": "Implement Freshservice IT Service Management integration",
+                "score": 0.82
+              },
+              {
+                "expected": "Assess feasibility of migrating non-VCF managed hosts and NSX environment into VCF",
+                "actual": "Confirm migration of non-VCF managed hosts and NSX environment into VCF",
+                "score": 0.81
+              },
+              {
+                "expected": "Complete VCF brownfield migration",
+                "actual": "Complete VCF brownfield migration",
+                "score": 1.0
+              },
+              {
+                "expected": "Review architecture and clean up existing Aria Operations for Networks environment",
+                "actual": "Review architecture, health check and cleanup of existing environment",
+                "score": 0.69
+              },
+              {
+                "expected": "Add physical network infrastructure to Aria Operations for Networks",
+                "actual": "Add physical network infrastructure",
+                "score": 0.69
+              },
+              {
+                "expected": "Configure multi-tiered application discovery",
+                "actual": "Configure two multi-tiered applications for discovery",
+                "score": 0.91
+              }
+            ],
+            "missed": [
+              "Deploy and configure TVS modules",
+              "Deploy and configure Aria Automation environment",
+              "Build Windows server VM decommission blueprint",
+              "Execute remediation steps to prepare for VCF brownfield migration"
+            ],
+            "extra": [
+              "Conduct kickoff meeting to review SOW and project objectives",
+              "Develop milestone project schedule",
+              "Act as point of contact for changes or escalations during the project",
+              "Recap project activities and formally close the project",
+              "Appoint a contact person for communication",
+              "Approve materials and services provided by Seller",
+              "Manage all communications with Seller",
+              "Communicate any objections to an invoice within fifteen days"
+            ],
+            "match_rate": 77.8
+          },
+          "validation": {
+            "passed": true,
+            "iterations": 1,
+            "hit_max_iterations": false,
+            "final_feedback": "The task plan is clear, well-structured, and priorities are reasonable. All tasks are actionable with appropriate subtasks."
+          },
+          "from_cache": false
+        }
+      ],
+      "consistency": {
+        "score": 77.3,
+        "same_count": false,
+        "added_in_run2": [
+          "Deploy and configure relevant TVS modules",
+          "Integrate IP Address Management with Infoblox BloxOne DDI",
+          "Implement Freshservice IT Service Management integration",
+          "Confirm migration of non-VCF managed hosts and NSX environment into VCF",
+          "Review architecture, health check and cleanup of existing environment"
+        ],
+        "removed_in_run2": [
+          "Deploy and configure relevant TVS modules for the environment",
+          "Integrate IPAM with Infoblox BloxOne DDI",
+          "Implement Freshservice ITSM integration",
+          "Confirm if we can migrate non-VCF managed hosts and NSX environment into VCF"
+        ]
+      }
+    }
+  ],
+  "isolation": {
+    "sow-1": {
+      "isolated": true,
+      "violations": []
+    },
+    "sow-2": {
+      "isolated": true,
+      "violations": []
+    },
+    "sow-3": {
+      "isolated": true,
+      "violations": []
+    },
+    "sow-4": {
+      "isolated": true,
+      "violations": []
+    }
+  }
+}
