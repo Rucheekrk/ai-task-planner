@@ -235,6 +235,12 @@ def apply_task_updates(state: AgentState):
             update_task_field(task_id, "blocker", event.get("blocker"))
             update_task_field(task_id, "status", event.get("status"))
 
+        # Generic update: write any populated fields (owner, deadline, status, blocker)
+        elif event_type == "task_update":
+            for field in ("owner", "deadline", "status", "blocker"):
+                if event.get(field):
+                    update_task_field(task_id, field, event.get(field))
+
         # Always re-write priority and subtasks for matched tasks (enriched fields)
         norm_text = normalize_text(event.get("task_text", ""))
         enriched = priority_lookup.get(norm_text, {})

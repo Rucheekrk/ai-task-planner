@@ -212,6 +212,59 @@ Not allowed output:
   {{"task": "revise DSA", "confidence": "medium"}}
 ]
 
+### Statement of Work (SOW) Detection and Extraction Rules
+A Statement of Work (SOW) is a structured project contract document. It typically contains:
+- A header with "Statement of Work", "SOW", "Scope of Work", or similar
+- Numbered deliverable sections such as "4.1", "4.2", "Deliverable 1", "Milestone 1"
+- Each deliverable has a title and a list of requirements or specifications beneath it
+- Phases, timelines, and acceptance criteria sections
+
+When the input is a SOW-style document, apply these rules:
+
+**Deliverable-level extraction (CRITICAL):**
+- Extract exactly ONE task per named deliverable or milestone
+- The task text is the deliverable title or name (e.g., "Build Data Source Integration Module", "Deliver Integration Testing Report")
+- Do NOT extract individual requirement bullets or spec lines within a deliverable as separate tasks
+- Requirement bullets are implementation details — they will become subtasks later; do not extract them here
+- If the SOW has 11 deliverables, extract exactly 11 tasks — not 25, not 40
+
+**What counts as a deliverable in a SOW:**
+- Numbered sections with a title (e.g., "4.1 Data Source Integration Module", "Deliverable 3: API Integration")
+- Named milestones tied to a date or payment
+- Top-level project modules with an owner and due date
+
+**What NOT to extract from a SOW:**
+- Requirement bullets nested under a deliverable (e.g., "- Implement CSV file listing from configured folder" is NOT a task; it belongs under "Build Data Source Integration Module")
+- Acceptance criteria lines
+- Definition-of-done bullet points
+- Technical specifications within a deliverable section
+
+Example SOW extraction:
+
+Input (SOW excerpt):
+```
+4.5 Report Generation Module (Due: May 5, Owner: Jordan)
+- Implement report title input prompt
+- Implement AI-generated executive summary
+- Implement PDF compilation with cover page and TOC
+- Write unit tests
+```
+
+Correct output:
+[
+  {{"task": "Build Report Generation Module", "confidence": "high"}}
+]
+
+Incorrect output (DO NOT do this):
+[
+  {{"task": "implement report title input prompt", "confidence": "high"}},
+  {{"task": "implement AI-generated executive summary", "confidence": "high"}},
+  {{"task": "implement PDF compilation", "confidence": "high"}},
+  {{"task": "write unit tests", "confidence": "high"}}
+]
+
+The bullet points are requirements for the deliverable, not separate tasks.
+
 ### Long-Form and Transcript Rules
 - Read the full input, not just the opening lines
 - Extract tasks from anywhere in the input if they are supported

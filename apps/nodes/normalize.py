@@ -1,8 +1,11 @@
+import datetime
+
 from apps.llm import call_llm_json
 from apps.logger import get_logger
 from apps.state import AgentState
 from prompts.normalize.prompt import get_normalize_prompt
 from apps.utils.abbreviations import expand_abbreviations
+from apps.utils.deadline import resolve_deadline
 
 # Initialize logger for this node
 logger = get_logger("NORMALIZE")
@@ -51,16 +54,6 @@ def task_normalize_node(state: AgentState) -> AgentState:
         normalized_events = []
 
     # Define allowed values for event type and confidence
-    allowed_event_types = {
-        "new_task",
-        "task_update",
-        "status_change",
-        "blocker",
-        "dependency",
-        "owner_change",
-        "deadline_change",
-    }
-
     allowed_confidence = {"high", "medium", "low"}
 
     # Clean and normalize each event object
@@ -69,8 +62,7 @@ def task_normalize_node(state: AgentState) -> AgentState:
     for item in normalized_events:
         if not isinstance(item, dict):
             continue
-        
-        event_type = item.get("event_type")
+
         task_text = item.get("task_text")
         owner = item.get("owner")
         status = item.get("status")
@@ -78,11 +70,6 @@ def task_normalize_node(state: AgentState) -> AgentState:
         blocker = item.get("blocker")
         dependency = item.get("dependency")
         confidence = item.get("confidence")
-
-        # Validate and correct event_type if invalid
-        if event_type not in allowed_event_types:
-            logger.warning(f"Invalid event_type '{event_type}' found. Defaulting to 'new_task'")
-            event_type = "new_task"
 
         # Skip invalid or empty task_text entries
         if not isinstance(task_text, str) or not task_text.strip():
@@ -95,8 +82,8 @@ def task_normalize_node(state: AgentState) -> AgentState:
             confidence = "medium"
 
         # Append cleaned and normalized event to final list
+        # event_type is not set here — the match node infers it after DB lookup
         cleaned_events.append({
-            "event_type": event_type,
             "task_text": task_text.strip(),
             "owner": owner if isinstance(owner, str) and owner.strip() else None,
             "status": status if isinstance(status, str) and status.strip() else None,
@@ -105,6 +92,16 @@ def task_normalize_node(state: AgentState) -> AgentState:
             "dependency": dependency if isinstance(dependency, str) and dependency.strip() else None,
             "confidence": confidence
         })
+
+    # Post-process: resolve natural-language deadlines to ISO dates (YYYY-MM-DD).
+    # Done here in Python after the LLM call — deterministic date math, not LLM work.
+    today = datetime.date.today()
+    for evt in cleaned_events:
+        if evt.get("deadline"):
+            resolved = resolve_deadline(evt["deadline"], today)
+            if resolved != evt["deadline"]:
+                logger.info(f"Deadline resolved: '{evt['deadline']}' → '{resolved}'")
+            evt["deadline"] = resolved
 
     # Store normalized events back into state
     state["normalized_events"] = cleaned_events

@@ -1,12 +1,12 @@
 # Prompt for the normalize node — instructs the LLM to enrich each extracted task
-# with structured fields (owner, status, deadline, blocker, dependency, event_type).
-# Uses the original raw input as context so field values are grounded in the source text.
+# with structured fields (owner, status, deadline, blocker, dependency).
+# event_type is NOT classified here — it is inferred by the match node after DB lookup.
 def get_normalize_prompt(raw_input: str, tasks: list) -> str:
     return f"""
-You are a task normalization and classification agent for an AI project manager system.
+You are a task normalization agent for an AI project manager system.
 
-Your job is to take the extracted task candidates and the original meeting/project context,
-then convert each extracted item into a structured task event.
+Your job is to take extracted task candidates and the original meeting/project context,
+then enrich each task with structured metadata fields.
 
 ### Input Description
 You are given:
@@ -14,71 +14,28 @@ You are given:
 2. A list of extracted task candidates
 
 Each extracted task candidate may be incomplete.
-You must use the raw input to enrich the extracted tasks with relevant context.
+Use the raw input to fill in any available metadata for each task.
 
 ### Goal
 For each extracted task candidate:
-- identify the correct event type
-- normalize the task text
-- extract relevant structured fields
-- avoid hallucinating information that is not supported by the raw input
-
-### Allowed event_type values
-You must choose exactly one of these values for each item:
-- new_task
-- task_update
-- status_change
-- blocker
-- dependency
-- owner_change
-- deadline_change
-
-### Event Type Definitions
-
-new_task:
-- use when the extracted item represents a newly assigned or newly created actionable task
-- this is the default for normal action items unless a more specific update type clearly applies
-
-task_update:
-- use only when the item refers to an update to an existing task, but it does not clearly fit status_change, blocker, dependency, owner_change, or deadline_change
-- use this as a fallback bucket only when needed
-
-status_change:
-- use when the task status is explicitly mentioned or changed
-- examples: in progress, completed, done, blocked, not started, on hold
-
-blocker:
-- use when the extracted item represents a blocking issue, obstacle, or something preventing progress
-- examples: waiting for credentials, pending approval, environment is unstable, missing dependency
-
-dependency:
-- use when the extracted item explicitly depends on another task or another task must happen first
-- examples: testing depends on deployment, task A must happen before task B
-
-owner_change:
-- use when ownership is newly assigned, changed, or reassigned
-- examples: John will handle this, move this to Priya, Arjun will take this up
-
-deadline_change:
-- use when a due date or timing commitment is explicitly introduced or changed
-- examples: by Friday, tomorrow EOD, next Monday, moved to Thursday
+- normalize the task text to be concise and action-oriented
+- extract owner, status, deadline, blocker, and dependency from the raw input context
+- do not hallucinate information that is not supported by the raw input
 
 ### Abbreviation Expansion
 - If a task text contains an abbreviation or acronym that you recognize, expand it to its full form in task_text
-- Apply this to abbreviations not already expanded in the input
 - Only expand when you are confident of the full form given the context
 - Examples:
   - "k8s" → "Kubernetes"
   - "iac" → "Infrastructure as Code"
   - "mvp" → "Minimum Viable Product"
   - "poc" → "Proof of Concept"
-- Do not guess or hallucinate expansions for abbreviations you are not confident about
-- If the input task text already contains an expanded form (e.g. "Continuous Integration and Continuous Deployment"), preserve it exactly in task_text — do NOT shorten it back to an abbreviation
+- Do not guess expansions for abbreviations you are not confident about
+- If the input already contains an expanded form, preserve it exactly — do NOT shorten it
 
 ### Field Rules
 
 For each item, return these fields:
-- event_type
 - task_text
 - owner
 - status
@@ -87,18 +44,14 @@ For each item, return these fields:
 - dependency
 - confidence
 
-### Field Behavior Rules
 - task_text:
   - should be short, clear, and normalized
   - remove unnecessary conversational wording
   - preserve the core task meaning
-  - for update-style events (status_change, owner_change, deadline_change, blocker, dependency, task_update),
-    task_text must refer to the underlying task being updated, not the full update sentence
   - remove wrapper phrases such as:
     "mark ... as completed"
     "this task is blocked because ..."
     "assign this to ..."
-    "move this to ..."
     "complete ... by Friday"
   - examples:
     "Mark the resume update task as completed" -> task_text: "Update resume"
@@ -111,7 +64,7 @@ For each item, return these fields:
 
 - status:
   - fill only if clearly stated
-  - examples: not_started, in_progress, completed, blocked, on_hold
+  - allowed values: not_started, in_progress, completed, blocked, on_hold
   - otherwise return null
 
 - deadline:
@@ -120,53 +73,24 @@ For each item, return these fields:
   - otherwise return null
 
 - blocker:
-  - fill only if there is an explicit blocking reason
+  - fill only if there is an explicit blocking reason mentioned in the raw input
   - otherwise return null
 
 - dependency:
-  - fill only if there is an explicit dependency relationship
+  - fill only if there is an explicit dependency relationship mentioned in the raw input
   - otherwise return null
 
 - confidence:
-  - must be exactly one of:
-    high
-    medium
-    low
+  - must be exactly one of: high, medium, low
 
 ### Important Rules
-- Do not invent new event_type values
 - Do not hallucinate owners, deadlines, statuses, blockers, or dependencies
 - Use the raw input to enrich the extracted tasks, but only with clearly supported information
 - Keep output strictly grounded in the input
 - Return one normalized object for each extracted task candidate
 - Preserve the number of extracted task candidates unless an item is completely invalid
-- If an extracted item is actionable and normal task creation is the best fit, use "new_task"
-
-### Interpretation Guidance
-- A task can still be "new_task" even if it also has an owner or deadline
-- Use owner, deadline, blocker, status, and dependency as supporting fields
-- Only choose owner_change, deadline_change, status_change, blocker, or dependency when that is clearly the main event represented by the extracted item
-- Since these extracted items already came from the task extractor, most normal action items will likely remain "new_task"
 
 ### Examples
-
-Raw input:
-"Mark the resume update task as completed."
-
-Extracted task:
-{{"task": "Mark the resume update task as completed", "confidence": "high"}}
-
-Output:
-{{
-  "event_type": "status_change",
-  "task_text": "Update resume",
-  "owner": null,
-  "status": "completed",
-  "deadline": null,
-  "blocker": null,
-  "dependency": null,
-  "confidence": "high"
-}}
 
 Raw input:
 "Priya, can you please reach out to the vendor and get the API credentials by tomorrow EOD?"
@@ -176,7 +100,6 @@ Extracted task:
 
 Output:
 {{
-  "event_type": "new_task",
   "task_text": "Get API credentials from vendor",
   "owner": "Priya",
   "status": null,
@@ -187,14 +110,14 @@ Output:
 }}
 
 Raw input:
-"John mentioned that he is currently working on the API integration for the payments module. However, the work is currently blocked because the credentials from the third-party vendor have not been received yet."
+"John mentioned that he is currently working on the API integration for the payments module.
+However, the work is currently blocked because the credentials from the third-party vendor have not been received yet."
 
 Extracted task:
 {{"task": "API integration is blocked due to missing vendor credentials", "confidence": "high"}}
 
 Output:
 {{
-  "event_type": "blocker",
   "task_text": "API integration for payments module",
   "owner": "John",
   "status": "blocked",
@@ -212,7 +135,6 @@ Extracted task:
 
 Output:
 {{
-  "event_type": "status_change",
   "task_text": "Complete analytics module work",
   "owner": "Karan",
   "status": "in_progress",
@@ -230,7 +152,6 @@ Extracted task:
 
 Output:
 {{
-  "event_type": "dependency",
   "task_text": "Begin QA testing",
   "owner": null,
   "status": null,
@@ -248,7 +169,6 @@ Output:
 {{
   "normalized_events": [
     {{
-      "event_type": "new_task",
       "task_text": "example task",
       "owner": null,
       "status": null,
