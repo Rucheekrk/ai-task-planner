@@ -57,7 +57,7 @@ def poll_job(job_id: str) -> dict:
 
 def field_score(task: dict) -> dict:
     """Return which normalized fields are populated for a task."""
-    fields = ["task_text", "owner", "deadline", "status", "priority", "subtasks", "blocker"]
+    fields = ["task_text", "owner", "deadline", "status", "priority", "blocker"]
     return {f: bool(task.get(f) not in (None, "", [], "null", "unknown", "not_started"))
             for f in fields}
 
@@ -95,7 +95,7 @@ def print_run_result(label: str, result: dict):
         return
 
     # Field completeness summary
-    field_totals = {f: 0 for f in ["owner", "deadline", "status", "priority", "subtasks", "blocker"]}
+    field_totals = {f: 0 for f in ["owner", "deadline", "status", "priority", "blocker"]}
     for t in tasks:
         scores = field_score(t)
         for f, v in scores.items():
@@ -119,14 +119,6 @@ def print_run_result(label: str, result: dict):
         priority = (t.get("priority") or "—")[:9]
         status   = (t.get("status") or "—")[:15]
         print(f"  {i:<4} {task_text:<46} {owner:<16} {deadline:<14} {priority:<10} {status}")
-
-        subtasks = t.get("subtasks") or []
-        if subtasks:
-            for st in subtasks[:3]:
-                st_text = str(st)[:60]
-                print(f"       └─ {st_text}")
-            if len(subtasks) > 3:
-                print(f"       └─ ... +{len(subtasks)-3} more subtasks")
 
     print(f"  {sep}")
 
@@ -165,7 +157,7 @@ def print_final_summary(all_tasks: list):
 
     # Overall field completeness across all tasks
     if all_tasks:
-        fields = ["owner", "deadline", "status", "priority", "subtasks", "blocker"]
+        fields = ["owner", "deadline", "status", "priority", "blocker"]
         print(f"  Overall field completeness ({len(all_tasks)} tasks total):")
         for field in fields:
             count = sum(1 for t in all_tasks
