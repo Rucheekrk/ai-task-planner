@@ -58,7 +58,7 @@ def _fetch_tasks_filtered(
         params.append(filter_status)
 
     sql = f"""
-        SELECT task_id, task_text, owner, status, deadline, priority, subtasks, created_at, updated_at
+        SELECT task_id, task_text, owner, status, deadline, priority, created_at, updated_at
         FROM tasks
         WHERE {' AND '.join(conditions)}
         ORDER BY
@@ -99,7 +99,7 @@ def search_tasks(query: Optional[str] = None, owner: Optional[str] = None, statu
 
     where = " AND ".join(conditions)
     sql = f"""
-        SELECT task_id, task_text, owner, status, deadline, priority, subtasks, created_at, updated_at
+        SELECT task_id, task_text, owner, status, deadline, priority, created_at, updated_at
         FROM tasks
         WHERE {where}
         ORDER BY updated_at DESC
@@ -124,7 +124,7 @@ def get_task_by_id(task_id: str) -> str:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
                 SELECT task_id, task_text, normalized_task_text, owner, status,
-                       deadline, blocker, priority, subtasks, is_active, created_at, updated_at
+                       deadline, blocker, priority, is_active, created_at, updated_at
                 FROM tasks
                 WHERE task_id = %s
             """, (task_id,))

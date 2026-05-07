@@ -16,7 +16,6 @@ class AgentState(TypedDict):
     unresolved_events: List[Dict[str, Any]]  # update events with no match
     
     # Downstream processing
-    decomposed_tasks: List[Dict[str, Any]]  # tasks with subtasks
     prioritized_tasks: List[Dict[str, Any]]  # tasks with priority
 
     # Validation loop

@@ -44,10 +44,9 @@ def insert_task(task, project_id: str = "default"):
                 deadline,
                 blocker,
                 priority,
-                subtasks,
                 task_embedding,
                 project_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING task_id
     """, (
         task.get("task_text"),
@@ -57,7 +56,6 @@ def insert_task(task, project_id: str = "default"):
         task.get("deadline"),
         task.get("blocker"),
         task.get("priority", "medium"),
-        task.get("subtasks", []),
         embedding,
         project_id,
     ))
@@ -186,25 +184,6 @@ def update_task_field(task_id, field_name, field_value):
     """
 
     cur.execute(query, (field_value, task_id))
-    conn.commit()
-    cur.close()
-    conn.close()
-
-
-def update_task_subtasks(task_id, subtasks: list):
-    # Update the subtasks array for an existing task.
-    # Kept separate from update_task_field because subtasks is a TEXT[] array type,
-    # not a simple scalar — psycopg2 handles the array serialization here.
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        UPDATE tasks
-        SET subtasks = %s,
-            updated_at = NOW()
-        WHERE task_id = %s
-    """, (subtasks, task_id))
-
     conn.commit()
     cur.close()
     conn.close()

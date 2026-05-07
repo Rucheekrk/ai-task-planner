@@ -4,7 +4,6 @@ from apps.db.db import (
     insert_task,
     insert_event,
     update_task_field,
-    update_task_subtasks,
     fetch_task_by_normalized_text,
     fetch_semantic_task_match,
     log_unresolved_event,
@@ -40,17 +39,9 @@ def task_format_node(state: AgentState) -> AgentState:
             if priority not in {"high", "medium", "low"}:
                 priority = "medium"
 
-            # Clean subtasks list
-            subtasks = [
-                subtask.strip()
-                for subtask in item.get("subtasks", [])
-                if isinstance(subtask, str) and subtask.strip()
-            ]
-
             formatted_tasks.append({
                 "task": task_text,
                 "priority": priority,
-                "subtasks": subtasks
             })
 
     # Clear refine target after successful completion
@@ -105,12 +96,10 @@ def normalize_text(text: str) -> str:
 
 
 def _refresh_task(task_id, task_data: dict):
-    # Re-apply priority and subtasks on an existing task found via dedup.
+    # Re-apply priority on an existing task found via dedup.
     # Keeps the task's enriched fields current without creating a duplicate row.
     if task_data.get("priority"):
         update_task_field(task_id, "priority", task_data["priority"])
-    if task_data.get("subtasks") is not None:
-        update_task_subtasks(task_id, task_data["subtasks"])
 
 
 def store_tasks(state: AgentState):
@@ -138,7 +127,6 @@ def store_tasks(state: AgentState):
                 "deadline": event.get("deadline"),
                 "blocker": event.get("blocker"),
                 "priority": enriched.get("priority", "medium"),
-                "subtasks": enriched.get("subtasks", []),
             }
 
             # Deduplication guard — exact normalized text match (scoped to project)
@@ -241,15 +229,12 @@ def apply_task_updates(state: AgentState):
                 if event.get(field):
                     update_task_field(task_id, field, event.get(field))
 
-        # Always re-write priority and subtasks for matched tasks (enriched fields)
+        # Always re-write priority for matched tasks (enriched field)
         norm_text = normalize_text(event.get("task_text", ""))
         enriched = priority_lookup.get(norm_text, {})
 
         if enriched.get("priority"):
             update_task_field(task_id, "priority", enriched["priority"])
-
-        if enriched.get("subtasks") is not None:
-            update_task_subtasks(task_id, enriched["subtasks"])
 
 
 def log_unresolved_events(state: AgentState):

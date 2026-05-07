@@ -10,7 +10,6 @@ Your job is to analyze validation feedback and decide which node should be revis
 
 ### Available refine Targets
 - extract
-- decompose
 - prioritize
 - validate
 
@@ -37,13 +36,6 @@ extract:
 - incorrect or irrelevant tasks
 - vague or poorly defined tasks
 
-decompose:
-- weak or unclear subtasks
-- subtasks are too vague or too high-level
-- subtasks are overlapping or duplicated
-- subtasks do not clearly explain execution steps
-- task breakdown is poor or incomplete
-
 prioritize:
 - incorrect priority assignment
 - dependency issues between tasks
@@ -58,20 +50,13 @@ validate:
 ### Decision Rules
 - Choose exactly one refine target
 - If feedback mentions task-level issues → choose "extract"
-- If feedback mentions subtask quality or execution clarity → choose "decompose"
 - If feedback mentions priority or dependency issues → choose "prioritize"
 - If feedback indicates the plan is acceptable → choose "validate"
-- Prefer "decompose" over "prioritize" when the issue is about execution detail rather than ordering
-
 ### Examples
 
 Feedback: "Tasks are missing and plan is incomplete"
 Output:
 {{"refine_target": "extract"}}
-
-Feedback: "Subtasks are vague and do not explain execution clearly"
-Output:
-{{"refine_target": "decompose"}}
 
 Feedback: "Resume update is ranked lower than job applications"
 Output:
@@ -86,7 +71,6 @@ Output:
 - Do not include explanations or extra text
 - refine_target must be exactly one of:
   extract
-  decompose
   prioritize
   validate
 

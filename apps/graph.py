@@ -4,7 +4,6 @@ from apps.state import AgentState
 from apps.nodes.extract import task_extract_node
 from apps.nodes.normalize import task_normalize_node
 from apps.nodes.match import task_match_node
-from apps.nodes.decompose import task_decompose_node
 from apps.nodes.prioritize import task_prioritize_node
 from apps.nodes.validate import task_validate_node
 from apps.nodes.refine import task_refine_node
@@ -25,7 +24,7 @@ def validate_router(state: AgentState) -> str:
 def refine_router(state: AgentState) -> str:
     target = state.get("refine_target", "prioritize")
 
-    valid_targets = {"extract", "decompose", "prioritize", "validate"}
+    valid_targets = {"extract", "prioritize", "validate"}
 
     if target not in valid_targets:
         target = "prioritize"
@@ -40,7 +39,6 @@ def build_graph():
     graph.add_node("extract", task_extract_node)
     graph.add_node("normalize", task_normalize_node)
     graph.add_node("match", task_match_node)
-    graph.add_node("decompose", task_decompose_node)
     graph.add_node("prioritize", task_prioritize_node)
     graph.add_node("validate", task_validate_node)
     graph.add_node("refine", task_refine_node)
@@ -52,8 +50,7 @@ def build_graph():
     # Main flow
     graph.add_edge("extract", "normalize")
     graph.add_edge("normalize", "match")
-    graph.add_edge("match", "decompose")
-    graph.add_edge("decompose", "prioritize")
+    graph.add_edge("match", "prioritize")
     graph.add_edge("prioritize", "validate")
 
     # Validate routing
@@ -72,7 +69,6 @@ def build_graph():
         refine_router,
         {
             "extract": "extract",
-            "decompose": "decompose",
             "prioritize": "prioritize",
             "validate": "validate",
         },

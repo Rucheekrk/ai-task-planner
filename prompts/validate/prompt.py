@@ -1,8 +1,8 @@
 # Prompts for the validate node — two variants depending on whether a plan exists:
 #   get_empty_plan_validate_prompt: used when prioritized_tasks is empty; checks whether
 #     the source input genuinely has no actionable tasks (valid empty) or missed extractions.
-#   get_quality_validate_prompt: used when a plan exists; evaluates task clarity,
-#     subtask quality, and priority/dependency coherence.
+#   get_quality_validate_prompt: used when a plan exists; evaluates task clarity
+#     and priority/dependency coherence.
 # Both return { is_valid: bool, validation_feedback: str }.
 def get_empty_plan_validate_prompt(source_input: str, tasks: list) -> str:
     return f"""
@@ -16,7 +16,6 @@ Your job is to evaluate whether the current prioritized task plan is good enough
   - task
   - confidence
   - priority
-  - subtasks
 
 ### Empty Plan Validation Rule (Critical Rule)
 - You MUST examine the source input before deciding
@@ -54,14 +53,13 @@ Output:
 ### Validation Criteria
 1. Tasks should be clear enough to be usable in a planning context
 2. Tasks should not be duplicates or near-duplicates
-3. Subtasks should clearly support the parent task
-4. Priorities should be reasonable based on urgency, dependency, and execution order
-5. The overall plan should be coherent, practical, and usable
+3. Priorities should be reasonable based on urgency, dependency, and execution order
+4. The overall plan should be coherent, practical, and usable
 
 ### Important Interpretation Rule
 - A parent task does not need to be extremely specific if it is still a valid planning goal
-- Broad or high-level goals can be acceptable if the subtasks make the plan actionable
-- Do not reject a plan only because the parent task is broad or abstract
+- Broad or high-level goals are acceptable if the task itself conveys a clear action
+- Do not reject a plan only because a task is broad or abstract
 - Reject the plan only if the overall plan is still too vague to execute
 
 ### Decision Rules
@@ -98,7 +96,6 @@ Your job is to evaluate whether the current prioritized task plan is good enough
   - task
   - confidence
   - priority
-  - subtasks
 
 ### Event-Aware Validation Rule (Critical)
 - The system may produce both new tasks and update events (status_change, blocker, dependency, owner_change, deadline_change)
@@ -110,17 +107,14 @@ Your job is to evaluate whether the current prioritized task plan is good enough
 ### Validation Criteria
 1. Tasks should be clear enough to be usable in a planning context
 2. Tasks should not be exact duplicates
-3. Subtasks should relate to the parent task — brief or concise subtasks are acceptable if they convey a clear action
-4. Priorities should be reasonable based on urgency, dependency, and execution order
-5. The overall plan should be coherent and usable
+3. Priorities should be reasonable based on urgency, dependency, and execution order
+4. The overall plan should be coherent and usable
 
 ### Important Interpretation Rules
-- A parent task does not need to be extremely specific if it is still a valid planning goal
-- Broad or high-level goals are acceptable if the subtasks make the plan actionable
-- Concise subtasks (e.g. "write tests", "deploy to staging") are valid — do NOT flag them as vague just because they are short
-- Only reject subtasks if they are completely meaningless (e.g. "work on it", "do better", "handle this")
-- Do not reject a plan only because the parent task is broad or abstract
-- Reject only if the overall plan is still too vague to execute even after reading the subtasks
+- A task does not need to be extremely specific if it is still a valid planning goal
+- Broad or high-level goals are acceptable if they convey a clear action
+- Do not reject a plan only because a task is broad or abstract
+- Reject only if the overall plan is still too vague to execute
 
 ### Priority and Dependency Rules
 - A PREREQUISITE task (one that must be completed FIRST so other tasks can proceed) should have equal or higher priority than the tasks that depend on it
@@ -134,8 +128,7 @@ Your job is to evaluate whether the current prioritized task plan is good enough
 - Mark is_valid = false ONLY for major issues:
   - Clearly assigned new tasks from the input are entirely missing from the plan
   - A prerequisite task is ranked lower than a task that explicitly depends on it
-  - Subtasks are completely meaningless and the parent task cannot be executed without better breakdown
-- Do NOT mark is_valid = false for: concise subtasks, broad-but-actionable parent tasks, update-only plans, or minor wording issues
+- Do NOT mark is_valid = false for: broad-but-actionable tasks, update-only plans, or minor wording issues
 
 ### Examples
 
@@ -144,34 +137,17 @@ Input:
 [
   {{
     "task": "update resume",
-    "priority": "high",
-    "subtasks": ["revise summary", "add projects"]
+    "priority": "high"
   }},
   {{
     "task": "apply to jobs",
-    "priority": "medium",
-    "subtasks": ["search jobs", "submit applications"]
+    "priority": "medium"
   }}
 ]
 Output:
 {{
   "is_valid": true,
-  "validation_feedback": "Tasks are clear, well-structured, and priorities follow logical execution order."
-}}
-
-Valid Plan Example (broad goal with actionable subtasks):
-Input:
-[
-  {{
-    "task": "improve my career",
-    "priority": "medium",
-    "subtasks": ["identify skill gaps", "enroll in relevant courses", "network with industry professionals"]
-  }}
-]
-Output:
-{{
-  "is_valid": true,
-  "validation_feedback": "The task is broad but the subtasks make the plan actionable and usable."
+  "validation_feedback": "Tasks are clear and priorities follow logical execution order."
 }}
 
 Valid Plan Example (final step correctly low priority):
@@ -179,18 +155,15 @@ Input:
 [
   {{
     "task": "Install and configure WebSphere Application Server",
-    "priority": "high",
-    "subtasks": ["download installer", "run setup wizard", "configure server"]
+    "priority": "high"
   }},
   {{
     "task": "Set up CI/CD pipeline",
-    "priority": "medium",
-    "subtasks": ["install Jenkins", "configure jobs", "connect to version control"]
+    "priority": "medium"
   }},
   {{
     "task": "Conduct UAT with business stakeholders",
-    "priority": "low",
-    "subtasks": ["schedule sessions", "prepare test cases", "collect feedback"]
+    "priority": "low"
   }}
 ]
 Output:
@@ -215,20 +188,6 @@ Output:
 {{
   "is_valid": false,
   "validation_feedback": "Resume update is a prerequisite and should not be lower priority than job applications."
-}}
-
-Invalid Plan Example (completely meaningless subtasks):
-Input:
-[
-  {{
-    "task": "prepare for interviews",
-    "subtasks": ["work on it", "do better"]
-  }}
-]
-Output:
-{{
-  "is_valid": false,
-  "validation_feedback": "Subtasks are meaningless and give no indication of how to execute the task. Break them into specific actions."
 }}
 
 ### Feedback Rules
